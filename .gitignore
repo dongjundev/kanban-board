@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# 백엔드 빌드 산출물·로컬 데이터
+backend/build/
+backend/.gradle/
+backend/data/
+
+# (프론트엔드는 front/.gitignore에서 node_modules, dist 등 관리)

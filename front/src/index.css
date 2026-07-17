@@ -1,0 +1,1099 @@
+/* ===== Atlassian 스타일 디자인 토큰 ===== */
+:root {
+  color-scheme: light;
+  --surface: #ffffff;
+  --background: #f7f8f9;
+  --column-bg: #f1f2f4;
+  --hover-bg: rgba(9, 30, 66, 0.06);
+  --text: #172b4d;
+  --text-subtle: #626f86;
+  --border: #dcdfe4;
+  --primary: #0c66e4;
+  --primary-hover: #0055cc;
+  --primary-contrast: #ffffff;
+  --danger: #c9372c;
+  --danger-bg: #ffeceb;
+  --danger-contrast: #ffffff;
+  --due-overdue-bg: #ffeceb;
+  --due-overdue-text: #ae2e24;
+  --due-soon-bg: #fff7d6;
+  --due-soon-text: #946f00;
+  --add-column-bg: rgba(241, 242, 244, 0.6);
+  --backdrop: rgba(9, 30, 66, 0.54);
+  --scrollbar-thumb: rgba(9, 30, 66, 0.25);
+  --shadow-card: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  --shadow-raised: 0 8px 12px rgba(9, 30, 66, 0.15), 0 0 1px rgba(9, 30, 66, 0.31);
+  --shadow-overlay: 0 12px 24px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+/* ===== 다크 테마 (Atlassian 다크 팔레트) ===== */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #22272b;
+  --background: #161a1d;
+  --column-bg: #1d2125;
+  --hover-bg: rgba(161, 189, 217, 0.12);
+  --text: #b6c2cf;
+  --text-subtle: #8c9bab;
+  --border: #38414a;
+  --primary: #579dff;
+  --primary-hover: #85b8ff;
+  --primary-contrast: #1d2125;
+  --danger: #f87168;
+  --danger-bg: #42221f;
+  --danger-contrast: #1d2125;
+  --due-overdue-bg: #42221f;
+  --due-overdue-text: #fd9891;
+  --due-soon-bg: #332e1b;
+  --due-soon-text: #f5cd47;
+  --add-column-bg: rgba(29, 33, 37, 0.6);
+  --backdrop: rgba(3, 4, 4, 0.7);
+  --scrollbar-thumb: rgba(161, 189, 217, 0.3);
+  --shadow-card: 0 1px 1px rgba(3, 4, 4, 0.5), 0 0 1px rgba(3, 4, 4, 0.5);
+  --shadow-raised: 0 8px 12px rgba(3, 4, 4, 0.36), 0 0 1px rgba(3, 4, 4, 0.5);
+  --shadow-overlay: 0 12px 24px rgba(3, 4, 4, 0.56), 0 0 1px rgba(3, 4, 4, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  /* color-scheme: dark에서 UA 기본 field 회색(#3b3b3b)이 팔레트와 어긋나지 않도록 */
+  background: var(--surface);
+}
+
+/* 공용 텍스트 입력 — 팝오버/모달의 입력들이 공유하고, 개별 규칙에는 추가 속성만 남긴다 */
+.board-create input,
+.label-create input,
+.label-edit input,
+.modal-field > input,
+.due-field > input,
+.modal-description {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.board-create input:focus,
+.label-create input:focus,
+.label-edit input:focus,
+.modal-field > input:focus,
+.due-field > input:focus,
+.modal-description:focus {
+  border-color: var(--primary);
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 공통 버튼 ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 12px;
+  transition: background 0.1s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  background: var(--hover-bg);
+  color: var(--text-subtle);
+  cursor: not-allowed;
+}
+
+.btn-subtle {
+  color: var(--text-subtle);
+}
+
+.btn-subtle:hover,
+.btn-subtle.active {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.btn-icon {
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-subtle);
+  line-height: 0;
+}
+
+.btn-icon:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.btn-sm {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-bg);
+}
+
+.btn-danger-solid {
+  background: var(--danger);
+  color: var(--danger-contrast);
+}
+
+.btn-danger-solid:hover {
+  filter: brightness(0.92);
+}
+
+.btn-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn-icon:disabled:hover {
+  background: none;
+  color: var(--text-subtle);
+}
+
+/* ===== 보드 헤더 ===== */
+.board-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.board-title {
+  font-size: 20px;
+  font-weight: 600;
+  padding: 2px 8px;
+  margin-left: -8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.board-title:hover {
+  background: var(--hover-bg);
+}
+
+.board-title-input {
+  font-size: 20px;
+  font-weight: 600;
+  padding: 1px 7px;
+  margin-left: -8px;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+  outline: none;
+  min-width: 200px;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-subtle);
+}
+
+.search-box:focus-within {
+  border-color: var(--primary);
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  padding: 7px 0;
+  width: 160px;
+  background: transparent;
+}
+
+.assignee-filter {
+  display: flex;
+  position: relative; /* +N 오버플로 메뉴의 기준점 */
+}
+
+.assignee-toggle {
+  border-radius: 50%;
+  padding: 2px;
+  margin-left: -4px;
+  line-height: 0;
+  border: 2px solid transparent;
+  transition: transform 0.1s;
+}
+
+.assignee-toggle:hover {
+  transform: translateY(-2px);
+}
+
+.assignee-toggle.selected {
+  border-color: var(--primary);
+}
+
+.label-filter {
+  position: relative;
+}
+
+.filter-count {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
+/* 트리거가 오른쪽 끝에 있는 메뉴들 — 화면 밖으로 밀리지 않게 우측 정렬 */
+.label-menu,
+.assignee-menu {
+  right: 0;
+  left: auto;
+}
+
+.label-menu {
+  min-width: 180px;
+}
+
+.label-menu-item {
+  gap: 8px;
+}
+
+.label-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ===== 보드 ===== */
+.board {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 24px;
+  overflow-x: auto;
+  min-height: 0;
+}
+
+/* ===== 컬럼 ===== */
+.column {
+  width: 284px;
+  flex-shrink: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--column-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+.column-dragging {
+  opacity: 0.4;
+}
+
+.column-overlay {
+  box-shadow: var(--shadow-overlay);
+  cursor: grabbing;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 6px 14px;
+  cursor: grab;
+  touch-action: manipulation;
+}
+
+.column-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  padding: 3px 6px;
+  margin-left: -6px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 헤더의 grab(드래그 힌트)과 구분되는 클릭-편집 어포던스 */
+  cursor: pointer;
+}
+
+.column-title:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.column-title-input {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 5px;
+  margin-left: -6px;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.column-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  background: var(--hover-bg);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.column-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+/* 메뉴 버튼이 컬럼 오른쪽 끝에 있으므로 팝오버를 오른쪽 정렬 —
+   보드 가로 스크롤 경계에서 잘리지 않도록 */
+.column-menu .menu-popover {
+  left: auto;
+  right: 0;
+}
+
+.column-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 8px;
+  min-height: 8px;
+}
+
+.column-footer {
+  padding: 6px 8px 8px;
+}
+
+.add-card-btn,
+.add-column-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-subtle);
+}
+
+.add-card-btn:hover,
+.add-column-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.add-column-btn {
+  width: 284px;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  background: var(--add-column-bg);
+  border-radius: var(--radius);
+}
+
+.add-column-btn:hover {
+  background: var(--column-bg);
+}
+
+.column-composer {
+  width: 284px;
+  flex-shrink: 0;
+  background: var(--column-bg);
+  border-radius: var(--radius);
+  padding: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.column-composer input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+/* ===== 카드 ===== */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  /* 터치: 짧은 스와이프는 스크롤로 통과, 드래그는 TouchSensor의 250ms 길게 누르기로 시작 */
+  touch-action: manipulation;
+}
+
+.card:hover {
+  border-color: var(--primary);
+}
+
+.card-dragging {
+  opacity: 0.35;
+}
+
+.card-overlay {
+  box-shadow: var(--shadow-overlay);
+  cursor: grabbing;
+  transform: rotate(2deg);
+}
+
+.card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #172b4d;
+  border-radius: 10px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-title {
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.due-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-subtle);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.due-overdue {
+  background: var(--due-overdue-bg);
+  color: var(--due-overdue-text);
+}
+
+.due-soon {
+  background: var(--due-soon-bg);
+  color: var(--due-soon-text);
+}
+
+.card:focus-visible,
+.board-title:focus-visible,
+.column-title:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ===== 카드 composer ===== */
+.card-composer textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius);
+  outline: none;
+  resize: none;
+  margin-bottom: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===== 팝오버 메뉴 ===== */
+.menu-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+  padding: 6px;
+  min-width: 160px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--hover-bg);
+}
+
+.menu-item-danger {
+  color: var(--danger);
+}
+
+.menu-item-danger:hover {
+  background: var(--danger-bg);
+}
+
+/* ===== 보드 전환 ===== */
+.board-switcher {
+  position: relative;
+}
+
+.board-switcher-popover {
+  min-width: 260px;
+}
+
+/* 팝오버 공용: 스크롤 리스트 + hover/키보드 포커스 시 액션 버튼이 드러나는 행
+   (보드 스위처·라벨 피커가 공유) */
+.board-switcher-list,
+.label-popover-list {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  overflow-y: auto;
+}
+
+.board-switcher-list {
+  max-height: 260px;
+}
+
+.board-switcher-row,
+.label-popover-row {
+  display: flex;
+  align-items: center;
+}
+
+.board-switcher-row > .menu-item,
+.label-popover-row .menu-item {
+  flex: 1;
+}
+
+.board-switcher-row > .menu-item {
+  min-width: 0;
+}
+
+.board-switcher-row .btn-icon,
+.label-popover-row .btn-icon {
+  visibility: hidden;
+}
+
+/* 키보드 포커스로도 액션 버튼에 도달 가능해야 함 */
+.board-switcher-row:hover .btn-icon,
+.board-switcher-row:focus-within .btn-icon,
+.label-popover-row:hover .btn-icon,
+.label-popover-row:focus-within .btn-icon {
+  visibility: visible;
+}
+
+.board-switcher-check {
+  width: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--primary);
+}
+
+.board-switcher-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.board-switcher-active .board-switcher-name {
+  font-weight: 600;
+}
+
+.board-switcher-count {
+  font-size: 12px;
+  color: var(--text-subtle);
+  background: var(--hover-bg);
+  border-radius: 10px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+
+.board-create {
+  display: flex;
+  gap: 8px;
+  padding: 2px 4px 4px;
+}
+
+.board-create input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== 라벨 피커 ===== */
+.label-picker {
+  position: relative;
+}
+
+.label-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.label-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  padding: 3px 4px 3px 10px;
+}
+
+.label-remove {
+  display: inline-flex;
+  border-radius: 50%;
+  padding: 2px;
+  color: rgba(23, 43, 77, 0.7);
+}
+
+.label-remove:hover {
+  background: rgba(9, 30, 66, 0.15);
+  color: #172b4d;
+}
+
+.label-popover {
+  min-width: 240px;
+}
+
+.label-popover-list {
+  max-height: 200px;
+}
+
+.label-create {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 4px 4px;
+}
+
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+}
+
+.color-swatch.selected {
+  border-color: var(--text);
+}
+
+.color-swatch:hover {
+  filter: brightness(0.92);
+}
+
+/* ===== 카드 상세 모달 ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--backdrop);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+  width: 640px;
+  max-width: 100%;
+  padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal:focus {
+  outline: none;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-context {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  outline: none;
+  width: calc(100% + 16px);
+  /* 평상시엔 인라인 편집 패턴대로 모달 표면에 녹아들도록 */
+  background: transparent;
+}
+
+.modal-title:hover {
+  background: var(--hover-bg);
+}
+
+.modal-title:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
+.modal-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-field-wide {
+  width: 100%;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+/* 직계 자식만 — 라벨 팝오버 내부 체크박스에 min-width가 적용되지 않도록 */
+.modal-field > input {
+  min-width: 180px;
+}
+
+.modal-description {
+  width: 100%;
+  padding: 10px 12px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.modal-created {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== 확인 다이얼로그 ===== */
+.confirm-backdrop {
+  z-index: 70;
+  align-items: center;
+  padding: 16px;
+}
+
+.confirm-dialog {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+  width: 360px;
+  max-width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.confirm-message {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ===== 필터 결과 없음 빈 상태 ===== */
+.board-empty-filter {
+  position: fixed;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+  color: var(--text-subtle);
+  font-size: 14px;
+}
+
+/* ===== 카드 푸터 메타 ===== */
+.card-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-desc-icon {
+  display: inline-flex;
+  color: var(--text-subtle);
+}
+
+/* ===== 마감일 필드 (지우기 버튼 포함) ===== */
+.due-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.due-field > input {
+  min-width: 150px;
+}
+
+/* ===== 라벨 인라인 편집 ===== */
+.label-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 2px 0;
+}
+
+.label-edit input {
+  padding: 6px 9px;
+}
+
+.label-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ===== 담당자 +N 오버플로 ===== */
+
+.assignee-overflow {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--hover-bg);
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.assignee-menu {
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* ===== 토스트 ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 440px;
+  padding: 10px 10px 10px 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+  font-size: 14px;
+  animation: toast-in 0.15s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toast-undo {
+  color: var(--primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.toast-undo:hover {
+  background: var(--hover-bg);
+}
+
+/* ===== 스크롤바 (Jira 스타일 얇은 스크롤바) ===== */
+.column-body::-webkit-scrollbar,
+.board::-webkit-scrollbar,
+.label-popover-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.column-body::-webkit-scrollbar-thumb,
+.board::-webkit-scrollbar-thumb,
+.label-popover-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.column-body::-webkit-scrollbar-track,
+.board::-webkit-scrollbar-track,
+.label-popover-list::-webkit-scrollbar-track {
+  background: transparent;
+}
