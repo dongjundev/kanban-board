@@ -7,7 +7,7 @@
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![H2](https://img.shields.io/badge/H2-file%20DB-004088)
 
-Confluence/Jira 보드 스타일의 칸반 보드 웹 앱. React 19 + TypeScript + Vite 프론트엔드(`front/`)에 Spring Boot 4(Java 21) + H2 백엔드(`backend/`)가 붙어 있습니다. 백엔드를 실행하면 데이터가 서버(H2 파일 DB)에 저장되어 브라우저·기기 간 동기화(4초 폴링)가 되고, 백엔드가 없으면 자동으로 localStorage 단독 모드로 동작합니다.
+칸반 보드 웹 앱. React 19 + TypeScript + Vite 프론트엔드(`front/`)에 Spring Boot 4(Java 21) + H2 백엔드(`backend/`)가 붙어 있습니다. 백엔드를 실행하면 데이터가 서버(H2 파일 DB)에 저장되어 브라우저·기기 간 동기화(4초 폴링)가 되고, 백엔드가 없으면 자동으로 localStorage 단독 모드로 동작합니다.
 
 > 설치·실행·배포·데이터 초기화 방법은 [GETTING_STARTED.md](./GETTING_STARTED.md),
 > 상세 아키텍처(레이어 구조, 데이터 모델, 상태 흐름, 드래그&드롭 파이프라인)는 [ARCHITECTURE.md](./ARCHITECTURE.md) 참조.

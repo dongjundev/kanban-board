@@ -15,7 +15,7 @@ interface BoardHeaderProps {
   onFiltersChange: (filters: Filters) => void
 }
 
-/** 이 수를 넘는 담당자는 +N 버튼 뒤의 드롭다운으로 축약 (Jira 패턴) */
+/** 이 수를 넘는 담당자는 +N 버튼 뒤의 드롭다운으로 축약 */
 const MAX_VISIBLE_ASSIGNEES = 5
 
 export function BoardHeader({ filters, onFiltersChange }: BoardHeaderProps) {

@@ -1077,7 +1077,7 @@ textarea {
   background: var(--hover-bg);
 }
 
-/* ===== 스크롤바 (Jira 스타일 얇은 스크롤바) ===== */
+/* ===== 얇은 스크롤바 ===== */
 .column-body::-webkit-scrollbar,
 .board::-webkit-scrollbar,
 .label-popover-list::-webkit-scrollbar {

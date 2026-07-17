@@ -56,7 +56,7 @@ export function AddCardComposer({ columnId, at = 'end', onAdded, open: openProp,
     textareaRef.current?.focus()
   }
 
-  // Trello 관례: 바깥을 클릭하면 입력 중이던 제목은 카드로 저장하고 composer를 닫는다.
+  // 바깥을 클릭하면 입력 중이던 제목은 카드로 저장하고 composer를 닫는다.
   // 다른 컬럼의 '카드 추가'를 누르면 이 composer가 닫혀 한 번에 하나만 열린 상태가 유지된다.
   // 'click' 시점 사용: pointerdown에 닫으면 카드 드래그 시작 직전에 레이아웃이 변형되어
   // 드래그 오버레이가 composer 높이만큼 어긋난다.

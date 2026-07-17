@@ -7,7 +7,7 @@ export function isFilterActive(filters: Filters): boolean {
 export function cardMatchesFilters(card: Card, filters: Filters, labels: Record<string, Label>): boolean {
   const query = filters.query.trim().toLowerCase()
   if (query) {
-    // 제목·설명 외에 담당자 이름과 지정된 라벨 이름도 검색 대상 (Trello 필터 검색 방식)
+    // 제목·설명 외에 담당자 이름과 지정된 라벨 이름도 검색 대상
     const labelNames = card.labelIds.map((id) => labels[id]?.name ?? '').join('\n')
     const haystack = `${card.title}\n${card.description}\n${card.assignee}\n${labelNames}`.toLowerCase()
     if (!haystack.includes(query)) return false

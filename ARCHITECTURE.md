@@ -1,6 +1,6 @@
 # 아키텍처 구성도
 
-Confluence/Jira 보드 스타일 칸반 보드의 아키텍처 문서입니다.
+칸반 보드의 아키텍처 문서입니다.
 
 - **스택**: React 19 · TypeScript(strict) · Vite 8 · @dnd-kit(드래그&드롭) · lucide-react(아이콘) / 백엔드: Spring Boot 4(Java 21) · JPA · H2 파일 DB
 - **형태**: SPA + 선택적 문서형 백엔드 — 백엔드가 있으면 서버가 진실의 원천(브라우저·기기 간 동기화), 없으면 localStorage 단독 모드로 자동 폴백
