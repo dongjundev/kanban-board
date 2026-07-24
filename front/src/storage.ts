@@ -1,4 +1,5 @@
 import type { BoardState, Workspace } from './types'
+import { uid } from './utils'
 
 /** v1: 단일 보드 시절의 레거시 키 — 마이그레이션 소스로만 읽음 */
 const LEGACY_BOARD_KEY = 'kanban-board-state-v1'
@@ -84,7 +85,7 @@ export function parseWorkspace(raw: string): Workspace | null {
 
 /** v1 단일 보드를 워크스페이스로 승격 */
 export function wrapLegacyBoard(board: BoardState): Workspace {
-  const boardId = `board-${crypto.randomUUID()}`
+  const boardId = `board-${uid()}`
   return { boards: { [boardId]: board }, boardOrder: [boardId], activeBoardId: boardId }
 }
 

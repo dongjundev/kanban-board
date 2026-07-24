@@ -1,7 +1,20 @@
 import type { Card, Label } from './types'
 
 export function uid(): string {
-  return crypto.randomUUID()
+  // crypto.randomUUID는 보안 컨텍스트(HTTPS·localhost)에만 존재 — HTTP+IP 배포 등
+  // 비보안 컨텍스트에서는 undefined라 호출 시 크래시. getRandomValues는 어디서나 가능.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40 // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80 // variant 10
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  }
+  // 최후 폴백 (crypto 자체가 없는 극단적 환경)
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`
 }
 
 export function clamp(value: number, min: number, max: number): number {
