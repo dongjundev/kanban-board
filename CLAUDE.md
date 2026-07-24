@@ -1,0 +1,73 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 프로젝트 개요
+
+칸반 보드 웹 앱. `front/`(React 19 + TypeScript strict + Vite 8)와 선택적 `backend/`(Spring Boot 4, Java 21, PostgreSQL)로 구성. 백엔드가 있으면 서버가 진실의 원천(브라우저·기기 간 폴링 동기화), 없으면 localStorage 단독 모드로 자동 폴백한다. UI 문구·주석·커밋 메시지는 한국어를 사용한다. 상세 설계는 `ARCHITECTURE.md` 참조.
+
+## 명령어
+
+```bash
+# 프론트엔드 (front/ 에서)
+npm run dev                    # 개발 서버 5173 (/api → 8080 프록시)
+npm run dev -- --port 5175     # E2E 스위트는 5175 포트를 가정
+npm run build                  # tsc -b && vite build — 타입 체크는 여기서만 됨 (vite는 transpile only)
+npm test                       # vitest 단위 테스트 전체
+npx vitest run src/state/workspaceReducer.test.ts   # 단일 테스트 파일
+npm run lint                   # oxlint
+
+# 백엔드 (backend/ 에서)
+docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw 모두 kanban)
+./gradlew bootRun              # 8080, 데이터: PostgreSQL workspace_document 테이블
+./gradlew test                 # API 테스트 (인메모리 H2 — Postgres 불요, 방언 중립 매핑)
+./gradlew test --tests 'com.kanban.workspace.WorkspaceApiTests'   # 단일 클래스
+
+# E2E (e2e/ — 프레임워크 없는 단독 실행형 Playwright 스크립트, node smoke*.mjs)
+# 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
+#  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
+#  - 나머지 9개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
+#  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
+```
+
+## 아키텍처 핵심
+
+### 상태: 리듀서 합성 + 정규화
+
+`workspaceReducer`가 워크스페이스 액션(보드 생성/삭제/전환/RESTORE_*)만 직접 처리하고, 나머지 `BoardAction`은 활성 보드의 `boardReducer`로 위임한다. 컴포넌트는 `useBoard()`로 활성 보드 `state`와 `dispatch`만 보므로 다중 보드를 의식하지 않는다. 카드 본문은 `cards` 맵에 한 번만 존재하고 컬럼은 `cardIds`로 순서만 관리(정규화). 리듀서는 순수 함수 — `uid()` 등 부수효과는 dispatch 시점에 만들어 액션에 담는다.
+
+### 영속화: 3계층 동기화 (BoardContext.tsx가 오케스트레이션)
+
+서버(PostgreSQL, version 번호) ↔ localStorage 미러(오프라인 폴백) ↔ 다른 탭(storage 이벤트). 이 코드는 여러 리뷰 사이클에서 실데이터 소실 버그를 잡으며 다듬어진 부분이라 수정 시 각별히 주의:
+
+- **PUT은 `baseVersion` 선행조건** 포함 — 서버가 불일치 시 409, 클라이언트는 pull + 충돌 토스트(`window` CustomEvent `kanban:sync-conflict` → AppInner가 수신). 실패 시 dirty 복구 + 3초 재시도.
+- **에코 억제**(`skipNextPersist`: 'all' | 'remote'): 동기화로 받은 상태를 되저장하면 탭 간 무한 쓰기 루프가 생긴다 (두 탭의 activeBoardId가 달라 저장 문자열이 영원히 수렴하지 않음).
+- **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
+- 미러 저장은 leading(첫 변경 즉시) + trailing(400ms) — 드래그 중 매 dispatch 직렬화 방지. 테스트에서 localStorage를 clear한 직후 reload하면 대기 중이던 trailing 쓰기가 키를 되살릴 수 있으니 600ms 정착 대기.
+- 백엔드 감지는 `/api/workspace/version`(항상 200 JSON)으로 — `/api/workspace`의 404는 정적 호스팅 폴백과 구분 불가.
+
+### 실행 취소: 대상 지정 복원 (스냅샷 교체 아님)
+
+삭제 undo는 `RESTORE_CARD/COLUMN/LABEL/BOARD` 액션으로 삭제된 것만 원위치에 되살린다. 전체 스냅샷 `REPLACE_WORKSPACE`로 복원하면 confirm 대기·토스트 표시 중의 다른 변경을 덮어쓴다(과거 critical 버그). 캡처는 렌더 클로저가 아닌 최신 상태 ref에서 dispatch 시점에 수행(`useUndoableDelete`) — 비동기 confirm 때문에 렌더 시점 캡처는 낡은 상태가 된다.
+
+### 드래그&드롭 (dnd-kit multiple-containers)
+
+`onDragOver`가 컬럼 간 이동을 실시간 dispatch(라이브 프리뷰)하므로 취소 시 복원이 필수. 스냅샷은 **보드 id에 바인딩 + 레이아웃(columns/columnOrder)만** 담는다 — 드래그 중 활성 보드가 바뀌거나 다른 탭이 편집해도 오염되지 않게. `RESTORE_BOARD_LAYOUT`은 스냅샷 이후 생긴 컬럼/카드를 병합해 고아를 만들지 않고, cards 맵에 없는 참조를 걸러 검증 무결성을 지킨다. 센서: Mouse 4px / Touch 250ms 길게누름(CSS `touch-action: manipulation`과 세트) / Keyboard(카드에서 Enter=모달 열기, Space=드래그).
+
+### UI 레이어링 규약 (깨지기 쉬움)
+
+- **Esc 우선순위**: confirm > 팝오버·인라인 편집 > 모달. ConfirmDialog와 LabelPicker는 document **캡처** keydown 리스너 — 같은 노드·같은 단계의 리스너끼리는 stopPropagation이 통하지 않으므로, LabelPicker는 `.confirm-backdrop` 존재 시 스스로 양보한다.
+- `useClickOutside`는 캡처 단계 + confirm 레이어 내부 클릭 무시. composer들은 `'click'` 이벤트 모드 사용 — pointerdown에 닫으면 dnd 측정 전에 레이아웃이 변형되어 드래그 오버레이가 어긋난다.
+- 컬럼 헤더에 dnd `{...listeners}`가 스프레드되므로 내부 컨트롤은 `stopDndSensorEvents`(pointer/mouse/touch 3종)로 버블 차단 — 센서마다 듣는 이벤트가 다르다.
+- 모든 Enter/Esc 처리 입력에 `e.nativeEvent.isComposing` 가드 필수 (한글 IME — 조합 확정 Enter가 중복 제출됨).
+- CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
+
+### 백엔드 (문서형 API)
+
+단일 행(id=1) 문서 저장. version 0 시드 행 = "문서 없음"(GET 404). PUT은 `findForUpdate`(PESSIMISTIC_WRITE)로 version 증가를 직렬화 — 평범한 read-modify-write는 동시 저장에서 version이 유실/역행해 폴링이 변경을 영영 못 본다. GET은 payload 문자열을 재파싱 없이 그대로 이어붙여 응답한다. 깊은 검증은 프론트(`parseWorkspace`)의 책임.
+
+## 저장소 관례
+
+- 커밋 메시지는 한국어, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` 트레일러 사용.
+- 문서 갱신 대상: 기능 변경 시 `README.md`(기능 목록), 아키텍처 변경 시 `ARCHITECTURE.md`, 실행 방법 변경 시 `GETTING_STARTED.md`.
+- 기능·수정 후에는 해당 영역의 E2E 스위트로 회귀 확인하는 것이 이 저장소의 검증 관행이다.
