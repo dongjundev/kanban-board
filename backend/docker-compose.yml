@@ -1,0 +1,17 @@
+# 로컬 개발·E2E용 PostgreSQL. Azure에는 Azure Database for PostgreSQL을 쓰고
+# 앱에는 SPRING_DATASOURCE_* 환경변수를 주입한다(아래 GETTING_STARTED 참조).
+services:
+  postgres:
+    image: postgres:17
+    container_name: kanban-postgres
+    environment:
+      POSTGRES_DB: kanban
+      POSTGRES_USER: kanban
+      POSTGRES_PASSWORD: kanban
+    ports:
+      - "5432:5432"
+    volumes:
+      - kanban-pgdata:/var/lib/postgresql/data
+
+volumes:
+  kanban-pgdata:

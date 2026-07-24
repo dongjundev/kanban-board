@@ -39,6 +39,6 @@ node --experimental-default-type=module smoke.mjs   # 또는 그냥 node smoke.m
 
 - 각 스위트는 시작 시 `localStorage`를 초기화하므로 개발용 브라우저 데이터가 아닌 전용 dev 서버(5175)에서 돌리세요.
 - 백엔드 스위트 2개는 **빈 서버 DB**를 전제로 정확 개수 검증을 합니다. 실행 전:
-  `백엔드 정지 → rm backend/data/kanban* → 백엔드 기동` 후 두 스위트를 순서대로 1회씩 실행.
+  `백엔드 정지 → docker compose down -v && docker compose up -d(backend/에서, DB 초기화) → 백엔드 기동` 후 두 스위트를 순서대로 1회씩 실행.
 - 나머지 9개는 백엔드가 꺼져 있어야 합니다(켜져 있으면 서버 데이터가 localStorage 시나리오를 오염).
 - 스크린샷은 스크립트가 있는 폴더에 저장됩니다.

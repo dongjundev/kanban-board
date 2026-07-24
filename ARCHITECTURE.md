@@ -2,7 +2,7 @@
 
 칸반 보드의 아키텍처 문서입니다.
 
-- **스택**: React 19 · TypeScript(strict) · Vite 8 · @dnd-kit(드래그&드롭) · lucide-react(아이콘) / 백엔드: Spring Boot 4(Java 21) · JPA · H2 파일 DB
+- **스택**: React 19 · TypeScript(strict) · Vite 8 · @dnd-kit(드래그&드롭) · lucide-react(아이콘) / 백엔드: Spring Boot 4(Java 21) · JPA · PostgreSQL
 - **형태**: SPA + 선택적 문서형 백엔드 — 백엔드가 있으면 서버가 진실의 원천(브라우저·기기 간 동기화), 없으면 localStorage 단독 모드로 자동 폴백
 - **테스트**: vitest 단위 테스트(리듀서·유틸) + Spring Boot API 테스트 + Playwright E2E 스위트
 
@@ -106,7 +106,7 @@ classDiagram
 
 ## 4. 영속화와 동기화
 
-세 계층이 있습니다: **서버(H2, 진실의 원천)** ← 4초 폴링/디바운스 PUT → **localStorage(미러·오프라인 폴백)** ← storage 이벤트 → **다른 탭**.
+세 계층이 있습니다: **서버(PostgreSQL, 진실의 원천)** ← 4초 폴링/디바운스 PUT → **localStorage(미러·오프라인 폴백)** ← storage 이벤트 → **다른 탭**.
 
 **백엔드 API** (`backend/`, 문서형 — 프론트 저장 구조를 그대로 반영):
 

@@ -3,9 +3,10 @@ package com.kanban.workspace;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 워크스페이스 문서 단일 행 저장 (id는 항상 1).
@@ -22,7 +23,8 @@ public class WorkspaceDocument {
     @Id
     private Long id = SINGLETON_ID;
 
-    @Lob
+    // PostgreSQL은 text, H2는 큰 문자 타입으로 매핑 — @Lob의 oid(Large Object) 함정 회피
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(nullable = false)
     private String payload = "";
 
