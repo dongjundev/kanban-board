@@ -10,6 +10,10 @@
 services:
   postgres:
     image: postgres:17
+    # ⚠️ 외부(DBeaver 등) 직접 접속용 포트 공개. 반드시 Azure NSG에서 5432를
+    #    "내 공인 IP만" 허용할 것 — 0.0.0.0/0으로 열면 DB가 상시 공격 대상이 됨.
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: kanban
       POSTGRES_USER: kanban
