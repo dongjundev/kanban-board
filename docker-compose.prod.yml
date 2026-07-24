@@ -1,0 +1,46 @@
+# 단일 VM 프로덕션 배포 — nginx(프론트) + spring-boot(백엔드) + postgres
+#
+# 사용법 (VM에서):
+#   1) .env 파일에 POSTGRES_PASSWORD=<강한 비밀번호> 설정
+#   2) docker compose -f docker-compose.prod.yml up -d --build
+#   3) http://<VM_공인IP> 접속
+#
+# 외부에 열리는 포트는 frontend의 80뿐. backend(8080)·postgres(5432)는
+# compose 내부 네트워크 전용이라 인터넷에서 접근 불가.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: kanban
+      POSTGRES_USER: kanban
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 설정하세요}
+    volumes:
+      - kanban-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanban -d kanban"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kanban
+      SPRING_DATASOURCE_USERNAME: kanban
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 설정하세요}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./front
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  kanban-pgdata:

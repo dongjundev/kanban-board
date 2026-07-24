@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# 프로덕션 시크릿 (docker-compose.prod.yml)
+.env
+
 # 백엔드 빌드 산출물·로컬 데이터
 backend/build/
 backend/.gradle/
