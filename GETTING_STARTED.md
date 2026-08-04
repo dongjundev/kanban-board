@@ -113,7 +113,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 **운영 참고**
 - **DB URL은 `sslmode` 불필요** — 백엔드와 DB가 같은 내부 네트워크라 SSL이 필요 없습니다(compose가 `jdbc:postgresql://postgres:5432/kanban`로 자동 주입).
 - **HTTPS (권장)**: `http://<IP>`처럼 평문 HTTP+IP로 접속하면 브라우저가 **비보안 컨텍스트**로 취급해 `crypto.randomUUID` 등 secure-context 전용 API가 동작하지 않습니다(앱은 폴백으로 우회하지만, 근본 해결은 HTTPS). 도메인을 붙였다면 `frontend`의 nginx에 Let's Encrypt(certbot) 인증서를 추가하거나, 앞단에 Caddy/nginx TLS 종단을 두세요.
-- **백업**: 관리형 DB와 달리 자동 백업이 없으므로 `docker exec <postgres컨테이너> pg_dump -U kanban kanban > backup.sql` 을 크론으로 주기 실행하세요. 데이터는 `kanban-pgdata` 볼륨에 유지되어 `docker compose down`(볼륨 유지) 후 재기동해도 보존됩니다.
+- **백업**: 관리형 DB와 달리 자동 백업이 없으므로 `docker exec <postgres컨테이너> pg_dump -U kanban kanban > backup.sql` 을 크론으로 주기 실행하세요. 데이터는 `kanban-pgdata`(DB) + `kanban-uploads`(업로드 파일) 볼륨에 유지되어 `docker compose down`(볼륨 유지) 후 재기동해도 보존됩니다. 업로드 파일까지 백업하려면 `kanban-uploads` 볼륨도 함께 아카이브하세요.
 - **스키마**: `ddl-auto=update`라 최초 기동 시 `workspace_document` 테이블이 자동 생성됩니다.
 
 > 관리형 서비스(App Service + Azure Database for PostgreSQL + Static Web Apps)로 분리 배포하는 것도 가능합니다. 그 경우 백엔드에 `SPRING_DATASOURCE_URL`(Azure는 SSL 필수라 `?sslmode=require` 포함)·`SPRING_DATASOURCE_USERNAME`·`SPRING_DATASOURCE_PASSWORD`를 주입하고, 프론트는 정적 호스팅에 `front/dist`를 올린 뒤 `/api`를 백엔드로 프록시하면 됩니다. 비용은 늘지만 OS/DB 관리를 Azure가 대행합니다.

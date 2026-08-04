@@ -1097,3 +1097,163 @@ textarea {
 .label-popover-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ── 상단 뷰 전환 네비 (보드 / 메모) ── */
+.app-nav {
+  display: flex;
+  gap: 4px;
+  padding: 6px 16px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.app-tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text-subtle);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.app-tab:hover {
+  color: var(--text);
+}
+.app-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ── 메모 페이지 ── */
+.memo-page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--background);
+}
+.memo-error {
+  max-width: 960px;
+  margin: 0 auto 16px;
+  padding: 10px 14px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.memo-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+@media (max-width: 720px) {
+  .memo-columns {
+    grid-template-columns: 1fr;
+  }
+}
+.memo-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.memo-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--text);
+}
+.memo-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.memo-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+}
+.memo-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.memo-composer .btn,
+.memo-upload .btn {
+  align-self: flex-start;
+}
+.memo-upload {
+  margin-bottom: 16px;
+}
+.memo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.memo-item {
+  padding: 10px 12px;
+  background: var(--column-bg);
+  border-radius: var(--radius);
+}
+.memo-item-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.memo-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+.file-item .file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  word-break: break-all;
+  margin-bottom: 6px;
+}
+.file-item .file-name:hover {
+  text-decoration: underline;
+}
+.memo-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.memo-icon-btn:hover {
+  background: var(--hover-bg);
+  color: var(--danger);
+}
+.memo-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 13px;
+}

@@ -8,5 +8,6 @@
 backend/build/
 backend/.gradle/
 backend/data/
+backend/uploads/
 
 # (프론트엔드는 front/.gitignore에서 node_modules, dist 등 관리)

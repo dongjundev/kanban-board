@@ -7,6 +7,7 @@ import { collectAssignees } from './utils'
 import { BoardHeader } from './components/BoardHeader'
 import { Board } from './components/Board'
 import { CardModal } from './components/CardModal'
+import { MemoPage } from './components/MemoPage'
 import { ToastProvider, useToast } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
 
@@ -27,6 +28,7 @@ function AppInner() {
   // 필터 활성 중 추가된 카드 — 필터와 무관하게 보여줘서 "추가했는데 사라짐" 오인을 방지.
   // 필터를 바꾸거나 보드를 전환하면 예외가 해제된다.
   const [filterExemptIds, setFilterExemptIds] = useState<string[]>([])
+  const [view, setView] = useState<'board' | 'memo'>('board')
 
   // 보드별 필터 기억 — 보드를 잠깐 전환했다 돌아와도 검색어·필터가 유지된다
   const filtersByBoard = useRef(new Map<string, Filters>())
@@ -75,16 +77,32 @@ function AppInner() {
 
   return (
     <div className="app">
-      {/* key: 보드 전환 시 리마운트 — 제목 편집 draft 등 이전 보드의 헤더 상태가 남지 않도록 */}
-      <BoardHeader key={workspace.activeBoardId} filters={effectiveFilters} onFiltersChange={handleFiltersChange} />
-      <Board
-        filters={effectiveFilters}
-        filterExemptIds={filterExemptIds}
-        onCardClick={setSelectedCardId}
-        onCardAdded={handleCardAdded}
-        onClearFilters={() => handleFiltersChange(EMPTY_FILTERS)}
-      />
-      {selectedCard && <CardModal key={selectedCard.id} card={selectedCard} onClose={() => setSelectedCardId(null)} />}
+      <nav className="app-nav">
+        <button className={`app-tab${view === 'board' ? ' active' : ''}`} onClick={() => setView('board')}>
+          보드
+        </button>
+        <button className={`app-tab${view === 'memo' ? ' active' : ''}`} onClick={() => setView('memo')}>
+          메모
+        </button>
+      </nav>
+      {view === 'board' ? (
+        <>
+          {/* key: 보드 전환 시 리마운트 — 제목 편집 draft 등 이전 보드의 헤더 상태가 남지 않도록 */}
+          <BoardHeader key={workspace.activeBoardId} filters={effectiveFilters} onFiltersChange={handleFiltersChange} />
+          <Board
+            filters={effectiveFilters}
+            filterExemptIds={filterExemptIds}
+            onCardClick={setSelectedCardId}
+            onCardAdded={handleCardAdded}
+            onClearFilters={() => handleFiltersChange(EMPTY_FILTERS)}
+          />
+          {selectedCard && (
+            <CardModal key={selectedCard.id} card={selectedCard} onClose={() => setSelectedCardId(null)} />
+          )}
+        </>
+      ) : (
+        <MemoPage />
+      )}
     </div>
   )
 }
