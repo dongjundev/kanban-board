@@ -1,12 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
-import { ChevronDown, Moon, Search, Sun, X } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 import type { Filters } from '../types'
 import { EMPTY_FILTERS } from '../types'
 import { useBoard } from '../state/BoardContext'
 import { isFilterActive } from '../filtering'
 import { collectAssignees } from '../utils'
 import { useClickOutside } from '../hooks/useClickOutside'
-import { useTheme } from '../hooks/useTheme'
 import { Avatar } from './Avatar'
 import { BoardSwitcher } from './BoardSwitcher'
 
@@ -20,7 +19,6 @@ const MAX_VISIBLE_ASSIGNEES = 5
 
 export function BoardHeader({ filters, onFiltersChange }: BoardHeaderProps) {
   const { state, dispatch } = useBoard()
-  const { theme, toggle: toggleTheme } = useTheme()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(state.boardTitle)
   const [labelMenuOpen, setLabelMenuOpen] = useState(false)
@@ -188,15 +186,6 @@ export function BoardHeader({ filters, onFiltersChange }: BoardHeaderProps) {
             필터 초기화
           </button>
         )}
-
-        <button
-          className="btn btn-icon theme-toggle"
-          aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}
-          title={theme === 'light' ? '다크 모드' : '라이트 모드'}
-          onClick={toggleTheme}
-        >
-          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
       </div>
     </header>
   )

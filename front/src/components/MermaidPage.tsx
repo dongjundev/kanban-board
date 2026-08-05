@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { FilePlus2, Trash2, Workflow } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FilePlus2, Maximize, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
 import type { DiagramDto } from '../diagramApi'
 import * as diagramApi from '../diagramApi'
 import { useConfirm } from './ConfirmDialog'
@@ -49,6 +49,14 @@ function currentTheme(): 'dark' | 'default' {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
 }
 
+const MIN_SCALE = 0.2
+const MAX_SCALE = 5
+const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
+
+function clampScale(s: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
+}
+
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
 }
@@ -82,7 +90,40 @@ export function MermaidPage() {
   const [saving, setSaving] = useState(false)
   // 타이핑 중 늦게 끝난 이전 렌더가 최신 결과를 덮어쓰지 않도록 하는 순번
   const seqRef = useRef(0)
+  // 미리보기 확대/이동. transform-origin이 center라 배율 1·오프셋 0이면 기존 중앙 정렬 그대로다
+  const [view, setView] = useState(IDENTITY_VIEW)
+  const [dragging, setDragging] = useState(false)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 })
   const { confirm } = useConfirm()
+
+  /** (dx, dy)는 뷰포트 중심 기준 좌표 — 그 지점을 고정한 채 배율만 바꾼다. */
+  const zoomAt = useCallback((factor: number, dx: number, dy: number) => {
+    setView((v) => {
+      const scale = clampScale(v.scale * factor)
+      // 한도에 걸리면 k가 1이 되어 확대도 이동도 멈춘다
+      const k = scale / v.scale
+      return { scale, x: dx * (1 - k) + v.x * k, y: dy * (1 - k) + v.y * k }
+    })
+  }, [])
+
+  // 휠 줌은 리스너를 직접 붙인다 — React의 onWheel은 passive로 등록되어
+  // preventDefault가 먹지 않고, 확대할 때 페이지가 같이 스크롤된다.
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    function onWheel(this: HTMLDivElement, e: WheelEvent) {
+      e.preventDefault()
+      const rect = this.getBoundingClientRect()
+      zoomAt(
+        Math.exp(-e.deltaY * 0.002),
+        e.clientX - rect.left - rect.width / 2,
+        e.clientY - rect.top - rect.height / 2,
+      )
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomAt])
 
   useEffect(() => {
     diagramApi
@@ -156,12 +197,33 @@ export function MermaidPage() {
     setCurrentId(d.id)
     setTitle(d.title)
     setCode(d.code)
+    setView(IDENTITY_VIEW) // 확대해 둔 채로 다른 차트를 열면 화면 밖이 보인다
   }
 
   function handleNew() {
     setCurrentId(null)
     setTitle('')
     setCode('')
+    setView(IDENTITY_VIEW)
+  }
+
+  function handleDragStart(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragStart.current = { x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }
+    setDragging(true)
+  }
+
+  function handleDragMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging) return
+    const start = dragStart.current
+    setView((v) => ({ ...v, x: start.ox + (e.clientX - start.x), y: start.oy + (e.clientY - start.y) }))
+  }
+
+  function handleDragEnd(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging) return
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    setDragging(false)
   }
 
   async function handleDelete(d: DiagramDto) {
@@ -237,10 +299,36 @@ export function MermaidPage() {
 
       <section className="mermaid-pane">
         <h2 className="memo-title">미리보기</h2>
-        <div className="mermaid-preview">
+        <div
+          ref={viewportRef}
+          className={`mermaid-preview${svg ? ' pannable' : ''}${dragging ? ' dragging' : ''}`}
+          onPointerDown={svg ? handleDragStart : undefined}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+        >
           {svg ? (
-            // mermaid가 만든 SVG. 기본 securityLevel 'strict'로 라벨의 HTML이 살균된다.
-            <div className="mermaid-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+            <>
+              {/* mermaid가 만든 SVG. 기본 securityLevel 'strict'로 라벨의 HTML이 살균된다. */}
+              <div
+                className="mermaid-svg"
+                style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+              {/* 컨트롤 클릭이 뷰포트의 드래그 시작으로 번지지 않게 차단 */}
+              <div className="mermaid-zoom" onPointerDown={(e) => e.stopPropagation()}>
+                <button className="btn btn-icon" aria-label="확대" onClick={() => zoomAt(1.25, 0, 0)}>
+                  <ZoomIn size={16} />
+                </button>
+                <button className="btn btn-icon" aria-label="축소" onClick={() => zoomAt(1 / 1.25, 0, 0)}>
+                  <ZoomOut size={16} />
+                </button>
+                <button className="btn btn-icon" aria-label="원래 크기" onClick={() => setView(IDENTITY_VIEW)}>
+                  <Maximize size={16} />
+                </button>
+                <span className="mermaid-zoom-level">{Math.round(view.scale * 100)}%</span>
+              </div>
+            </>
           ) : (
             <p className="memo-empty">{code.trim() ? '렌더링 중…' : 'mermaid 코드를 입력하세요.'}</p>
           )}

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import type { Filters } from './types'
 import { EMPTY_FILTERS } from './types'
 import { BoardProvider, useBoard } from './state/BoardContext'
 import { isFilterActive } from './filtering'
 import { collectAssignees } from './utils'
+import { useTheme } from './hooks/useTheme'
 import { BoardHeader } from './components/BoardHeader'
 import { Board } from './components/Board'
 import { CardModal } from './components/CardModal'
@@ -15,6 +17,9 @@ import { ConfirmProvider } from './components/ConfirmDialog'
 function AppInner() {
   const { state, workspace } = useBoard()
   const { showToast } = useToast()
+  // 테마 토글은 여기 한 곳에서만 호출 — useTheme은 Context가 아니라 로컬 state 훅이라
+  // 두 컴포넌트가 각자 호출하면 상태가 갈라져 토글이 어긋난다
+  const { theme, toggle: toggleTheme } = useTheme()
 
   // 동기화 충돌(다른 클라이언트가 먼저 저장) 시 BoardContext가 쏘는 알림
   useEffect(() => {
@@ -87,6 +92,14 @@ function AppInner() {
         </button>
         <button className={`app-tab${view === 'mermaid' ? ' active' : ''}`} onClick={() => setView('mermaid')}>
           다이어그램
+        </button>
+        <button
+          className="btn btn-icon theme-toggle"
+          aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}
+          title={theme === 'light' ? '다크 모드' : '라이트 모드'}
+          onClick={toggleTheme}
+        >
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
       </nav>
       {view === 'board' ? (

@@ -1101,10 +1101,14 @@ textarea {
 /* ── 상단 뷰 전환 네비 (보드 / 메모) ── */
 .app-nav {
   display: flex;
+  align-items: center;
   gap: 4px;
   padding: 6px 16px 0;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+.app-nav .theme-toggle {
+  margin: 0 0 6px auto;
 }
 .app-tab {
   padding: 8px 16px;
@@ -1315,19 +1319,51 @@ textarea {
   word-break: break-word;
 }
 .mermaid-preview {
+  position: relative;
   flex: 1;
   min-height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: auto;
+  /* 확대·이동은 transform으로 하므로 스크롤 대신 잘라낸다 */
+  overflow: hidden;
   padding: 8px;
   background: var(--column-bg);
   border-radius: var(--radius);
+  /* 드래그 이동이 브라우저 기본 제스처(스크롤·당겨서 새로고침)에 뺏기지 않게 */
+  touch-action: none;
+}
+.mermaid-preview.pannable {
+  cursor: grab;
+}
+.mermaid-preview.dragging {
+  cursor: grabbing;
 }
 .mermaid-svg svg {
   max-width: 100%;
   height: auto;
+}
+.mermaid-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  cursor: default;
+}
+.mermaid-zoom-level {
+  min-width: 42px;
+  padding: 0 4px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-subtle);
 }
 .mermaid-toolbar {
   display: flex;
