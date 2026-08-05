@@ -1257,3 +1257,75 @@ textarea {
   color: var(--text-subtle);
   font-size: 13px;
 }
+
+/* ── mermaid 다이어그램 페이지 ── */
+.mermaid-page {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  background: var(--background);
+}
+@media (max-width: 900px) {
+  .mermaid-page {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+.mermaid-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.mermaid-editor {
+  flex: 1;
+  min-height: 220px;
+  resize: none;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--column-bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.mermaid-editor:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.mermaid-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  max-height: 120px;
+  overflow: auto;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mermaid-preview {
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 8px;
+  background: var(--column-bg);
+  border-radius: var(--radius);
+}
+.mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}

@@ -40,6 +40,7 @@ cd backend && ./gradlew test         # API 테스트 (인메모리 H2로 실행)
 - **실행 취소**: 카드/컬럼/보드/라벨 삭제 후 토스트의 '실행 취소'(7초)로 복원
 - **터치 지원**: 짧은 스와이프는 스크롤, 250ms 길게 누르면 드래그 시작
 - **메모 · 파일**: 상단 '메모' 탭에서 텍스트 메모 작성/삭제, 파일 업로드/다운로드/삭제. 서버 저장(메모·메타데이터는 PostgreSQL, 파일 바이트는 백엔드 볼륨) — 백엔드 실행 시에만 동작
+- **다이어그램**: 상단 '다이어그램' 탭에서 mermaid 코드를 입력하면 300ms 디바운스로 미리보기가 갱신됨(문법 오류는 메시지로 표시하고 직전 그림 유지). 다크 모드 연동, 초안은 localStorage(`kanban-mermaid-draft`)에 보관 — 백엔드 불필요
 - **다크 모드**: 헤더의 달/해 버튼으로 토글. 첫 방문 시 OS 설정(`prefers-color-scheme`)을 따르고, 토글하면 localStorage(`kanban-board-theme`)에 저장
 - **영속성**: 백엔드 실행 시 서버(PostgreSQL)에 저장(디바운스 400ms) + 브라우저·기기 간 4초 폴링 동기화. localStorage는 미러/오프라인 폴백. 서버가 비어 있으면 첫 접속 때 로컬 데이터 자동 마이그레이션
 
@@ -72,6 +73,8 @@ front/src/
     ├── BoardHeader.tsx    # 보드 제목, 검색, 담당자/라벨 필터
     ├── AddCardComposer.tsx
     ├── AddColumnButton.tsx
+    ├── MemoPage.tsx       # 메모·파일 업로드 페이지 (서버 저장)
+    ├── MermaidPage.tsx    # mermaid 실시간 편집·미리보기 (mermaid는 동적 import로 청크 분리)
     └── Avatar.tsx
 ```
 

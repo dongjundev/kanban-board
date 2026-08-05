@@ -139,6 +139,7 @@ cd backend
 |---|---|
 | `kanban-workspace-v1` | 보드·컬럼·카드·라벨 전체 |
 | `kanban-board-theme` | 다크/라이트 테마 선택 |
+| `kanban-mermaid-draft` | '다이어그램' 탭에서 편집 중인 mermaid 코드 (서버에 저장되지 않음) |
 | `kanban-board-state-v1` | (레거시) 구버전 단일 보드 — 있으면 첫 로드 때 자동 마이그레이션 |
 
 **데이터 전체 초기화** — 브라우저 DevTools(F12) 콘솔에서:
