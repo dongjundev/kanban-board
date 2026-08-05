@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FilePlus2, Maximize, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
 import type { DiagramDto } from '../diagramApi'
 import * as diagramApi from '../diagramApi'
+import type { Theme } from '../hooks/useTheme'
 import { useConfirm } from './ConfirmDialog'
 
 const DRAFT_KEY = 'kanban-mermaid-draft'
@@ -45,9 +46,6 @@ function loadDraft(): Draft {
   return { id: null, title: '', code: raw }
 }
 
-function currentTheme(): 'dark' | 'default' {
-  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
-}
 
 const MIN_SCALE = 0.2
 const MAX_SCALE = 20
@@ -97,8 +95,13 @@ function getMermaid() {
   return mermaidPromise
 }
 
+interface MermaidPageProps {
+  /** 테마를 prop으로 받아 렌더 의존성에 넣는다 — DOM에서 읽으면 토글해도 다시 그리지 않는다 */
+  theme: Theme
+}
+
 /** mermaid 차트 실시간 편집 페이지. 편집 중 초안은 localStorage, 저장한 차트는 서버(DB). */
-export function MermaidPage() {
+export function MermaidPage({ theme }: MermaidPageProps) {
   const [initial] = useState(loadDraft)
   const [code, setCode] = useState(initial.code)
   const [title, setTitle] = useState(initial.title)
@@ -182,9 +185,12 @@ export function MermaidPage() {
       void (async () => {
         try {
           const mermaid = await getMermaid()
-          // 테마는 매번 주입 — 다크 모드를 토글하고 돌아와도 미리보기가 따라간다.
-          // suppressErrorRendering: 실패 시 mermaid가 DOM에 에러 다이어그램을 심는 것을 막는다.
-          mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true, theme: currentTheme() })
+          // suppressErrorRendering: 실패 시 mermaid가 DOM에 에러 다이어그램을 심는 것을 막는다
+          mermaid.initialize({
+            startOnLoad: false,
+            suppressErrorRendering: true,
+            theme: theme === 'dark' ? 'dark' : 'default',
+          })
           await mermaid.parse(source)
           const { svg: rendered } = await mermaid.render(`mermaid-preview-${seq}`, source)
           if (seq !== seqRef.current) return
@@ -198,7 +204,8 @@ export function MermaidPage() {
       })()
     }, 300)
     return () => clearTimeout(timer)
-  }, [code])
+    // theme이 바뀌면 같은 코드라도 다시 그린다 — mermaid는 렌더 시점의 테마를 SVG에 구워 넣는다
+  }, [code, theme])
 
   async function handleSave() {
     const trimmed = title.trim()

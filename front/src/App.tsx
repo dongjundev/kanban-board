@@ -14,6 +14,19 @@ import { MermaidPage } from './components/MermaidPage'
 import { ToastProvider, useToast } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
 
+type View = 'board' | 'memo' | 'mermaid'
+
+// 메모는 탭에서 감췄으므로 /memo 주소로만 들어온다. 나머지도 주소를 맞춰줘야
+// 메모에서 다른 탭으로 옮긴 뒤 새로고침했을 때 메모로 되돌아가지 않는다.
+const VIEW_PATHS: Record<View, string> = { board: '/', memo: '/memo', mermaid: '/diagram' }
+
+function viewFromPath(): View {
+  const path = window.location.pathname
+  if (path === '/memo') return 'memo'
+  if (path === '/diagram') return 'mermaid'
+  return 'board'
+}
+
 function AppInner() {
   const { state, workspace } = useBoard()
   const { showToast } = useToast()
@@ -29,12 +42,21 @@ function AppInner() {
     window.addEventListener('kanban:sync-conflict', onConflict)
     return () => window.removeEventListener('kanban:sync-conflict', onConflict)
   }, [showToast])
+
+  // 브라우저 뒤로/앞으로 가기
+  useEffect(() => {
+    function onPopState() {
+      setView(viewFromPath())
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   // 필터 활성 중 추가된 카드 — 필터와 무관하게 보여줘서 "추가했는데 사라짐" 오인을 방지.
   // 필터를 바꾸거나 보드를 전환하면 예외가 해제된다.
   const [filterExemptIds, setFilterExemptIds] = useState<string[]>([])
-  const [view, setView] = useState<'board' | 'memo' | 'mermaid'>('board')
+  const [view, setView] = useState<View>(viewFromPath)
 
   // 보드별 필터 기억 — 보드를 잠깐 전환했다 돌아와도 검색어·필터가 유지된다
   const filtersByBoard = useRef(new Map<string, Filters>())
@@ -73,6 +95,13 @@ function AppInner() {
     setFilters(next)
   }
 
+  function selectView(next: View) {
+    setView(next)
+    if (window.location.pathname !== VIEW_PATHS[next]) {
+      window.history.pushState(null, '', VIEW_PATHS[next])
+    }
+  }
+
   function handleCardAdded(cardId: string) {
     if (isFilterActive(effectiveFilters)) {
       setFilterExemptIds((prev) => [...prev, cardId])
@@ -84,15 +113,15 @@ function AppInner() {
   return (
     <div className="app">
       <nav className="app-nav">
-        <button className={`app-tab${view === 'board' ? ' active' : ''}`} onClick={() => setView('board')}>
+        <button className={`app-tab${view === 'board' ? ' active' : ''}`} onClick={() => selectView('board')}>
           보드
         </button>
-        <button className={`app-tab${view === 'memo' ? ' active' : ''}`} onClick={() => setView('memo')}>
-          메모
-        </button>
-        <button className={`app-tab${view === 'mermaid' ? ' active' : ''}`} onClick={() => setView('mermaid')}>
+        <button className={`app-tab${view === 'mermaid' ? ' active' : ''}`} onClick={() => selectView('mermaid')}>
           다이어그램
         </button>
+        {/* 메모는 탭에서 감춘 페이지 — /memo 주소로 접근한다. 들어와 있을 때만 탭을 보여
+            현재 위치를 알리고, 다른 탭으로 나가면 다시 사라진다. */}
+        {view === 'memo' && <span className="app-tab active">메모</span>}
         <button
           className="btn btn-icon theme-toggle"
           aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}
@@ -120,7 +149,7 @@ function AppInner() {
       ) : view === 'memo' ? (
         <MemoPage />
       ) : (
-        <MermaidPage />
+        <MermaidPage theme={theme} />
       )}
     </div>
   )

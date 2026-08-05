@@ -1111,6 +1111,7 @@ textarea {
   margin: 0 0 6px auto;
 }
 .app-tab {
+  display: inline-block;
   padding: 8px 16px;
   border: none;
   background: none;
@@ -1119,6 +1120,10 @@ textarea {
   font-weight: 600;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+}
+/* 메모 탭은 현재 위치 표시용 (버튼이 아님) */
+span.app-tab {
+  cursor: default;
 }
 .app-tab:hover {
   color: var(--text);
