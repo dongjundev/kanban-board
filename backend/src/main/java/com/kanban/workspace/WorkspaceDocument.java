@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.Length;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -23,9 +24,11 @@ public class WorkspaceDocument {
     @Id
     private Long id = SINGLETON_ID;
 
-    // PostgreSQL은 text, H2는 큰 문자 타입으로 매핑 — @Lob의 oid(Large Object) 함정 회피
+    // PostgreSQL은 text, H2는 큰 문자 타입으로 매핑 — @Lob의 oid(Large Object) 함정 회피.
+    // length=LONG32가 없으면 PostgreSQL이 varchar(32600)을 만들어, 보드가 늘어 payload가
+    // 32,600자를 넘는 순간부터 모든 저장이 500으로 실패한다.
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
-    @Column(nullable = false)
+    @Column(nullable = false, length = Length.LONG32)
     private String payload = "";
 
     @Column(nullable = false)

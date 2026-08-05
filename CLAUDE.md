@@ -66,6 +66,11 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 단일 행(id=1) 문서 저장. version 0 시드 행 = "문서 없음"(GET 404). PUT은 `findForUpdate`(PESSIMISTIC_WRITE)로 version 증가를 직렬화 — 평범한 read-modify-write는 동시 저장에서 version이 유실/역행해 폴링이 변경을 영영 못 본다. GET은 payload 문자열을 재파싱 없이 그대로 이어붙여 응답한다. 깊은 검증은 프론트(`parseWorkspace`)의 책임.
 
+**긴 문자열 컬럼(payload/content/code)은 `@JdbcTypeCode(LONGVARCHAR)` + `@Column(length = Length.LONG32)` 세트로만 쓸 것.** 둘 중 하나만 빠져도 조용히 망가진다:
+- `@Lob`을 쓰면 PostgreSQL에서 `oid`(Large Object)가 되어 `open-in-view=false`와 함께 GET이 깨진다.
+- `length`를 빼면 `varchar(32600)`이 되어, 데이터가 32,600자를 넘는 순간부터 **모든 저장이 500으로 실패**한다(보드가 쌓인 워크스페이스, 긴 메모, 큰 다이어그램에서 실제로 도달하는 크기). 새 엔티티를 추가할 때 특히 조심.
+- `ddl-auto=update`는 **기존 컬럼 타입을 바꾸지 않는다** — 매핑을 고쳐도 이미 배포된 DB는 `ALTER TABLE ... TYPE text`를 수동 실행해야 한다.
+
 ## 저장소 관례
 
 - 커밋 메시지는 한국어, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` 트레일러 사용.

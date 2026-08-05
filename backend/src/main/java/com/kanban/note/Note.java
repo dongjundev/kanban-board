@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.Length;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -19,9 +20,10 @@ public class Note {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 긴 메모 대비 text 매핑 (@Lob oid 함정 회피 — WorkspaceDocument와 동일 방식)
+    // 긴 메모 대비 text 매핑 (@Lob oid 함정 회피 — WorkspaceDocument와 동일 방식).
+    // length=LONG32가 없으면 varchar(32600)이 되어 긴 메모 저장이 실패한다.
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
-    @Column(nullable = false)
+    @Column(nullable = false, length = Length.LONG32)
     private String content = "";
 
     @Column(nullable = false)
