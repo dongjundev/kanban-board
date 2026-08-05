@@ -1329,3 +1329,75 @@ textarea {
   max-width: 100%;
   height: auto;
 }
+.mermaid-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.mermaid-title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+}
+.mermaid-title-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.mermaid-saved {
+  margin-top: 12px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.mermaid-saved-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+.mermaid-saved-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--radius);
+  background: var(--column-bg);
+}
+.mermaid-saved-item.active {
+  outline: 2px solid var(--primary);
+}
+.mermaid-saved-load {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.mermaid-saved-load:hover {
+  background: var(--hover-bg);
+}
+.mermaid-saved-name {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mermaid-saved-time {
+  flex-shrink: 0;
+  color: var(--text-subtle);
+  font-size: 11px;
+}
