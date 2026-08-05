@@ -150,6 +150,7 @@ cd backend
 | `kanban-workspace-v1` | 보드·컬럼·카드·라벨 전체 |
 | `kanban-board-theme` | 다크/라이트 테마 선택 |
 | `kanban-mermaid-draft` | '다이어그램' 탭에서 편집 중인 초안 (`{id, title, code}` JSON — 저장 버튼을 누른 차트는 서버 `diagram` 테이블에 별도 보관) |
+| `kanban-mermaid-split` | '다이어그램' 탭의 코드·미리보기 좌우 너비 비율(왼쪽 %) |
 | `kanban-board-state-v1` | (레거시) 구버전 단일 보드 — 있으면 첫 로드 때 자동 마이그레이션 |
 
 **데이터 전체 초기화** — 브라우저 DevTools(F12) 콘솔에서:

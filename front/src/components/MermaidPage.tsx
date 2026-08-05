@@ -50,11 +50,33 @@ function currentTheme(): 'dark' | 'default' {
 }
 
 const MIN_SCALE = 0.2
-const MAX_SCALE = 5
+const MAX_SCALE = 20
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
 
 function clampScale(s: number): number {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
+}
+
+const SPLIT_KEY = 'kanban-mermaid-split'
+const MIN_SPLIT = 20
+const MAX_SPLIT = 80
+
+function clampSplit(pct: number): number {
+  return Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, pct))
+}
+
+/** 좌우 패널 비율(왼쪽 %) — 새로고침해도 조정한 폭이 유지되게 보관한다. */
+function loadSplit(): number {
+  try {
+    const raw = localStorage.getItem(SPLIT_KEY)
+    if (raw) {
+      const pct = Number(raw)
+      if (Number.isFinite(pct)) return clampSplit(pct)
+    }
+  } catch {
+    // localStorage 접근 불가
+  }
+  return 50
 }
 
 function formatTime(iso: string): string {
@@ -95,6 +117,10 @@ export function MermaidPage() {
   const [dragging, setDragging] = useState(false)
   const viewportRef = useRef<HTMLDivElement>(null)
   const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 })
+  // 좌우 패널 비율(왼쪽 %) — 분할선 드래그로 조정
+  const [splitPct, setSplitPct] = useState(loadSplit)
+  const [resizing, setResizing] = useState(false)
+  const pageRef = useRef<HTMLDivElement>(null)
   const { confirm } = useConfirm()
 
   /** (dx, dy)는 뷰포트 중심 기준 좌표 — 그 지점을 고정한 채 배율만 바꾼다. */
@@ -226,6 +252,37 @@ export function MermaidPage() {
     setDragging(false)
   }
 
+  function applySplit(pct: number) {
+    const next = clampSplit(pct)
+    setSplitPct(next)
+    try {
+      localStorage.setItem(SPLIT_KEY, String(next))
+    } catch {
+      // 저장 실패해도 이번 세션에는 적용
+    }
+  }
+
+  // 포인터를 분할선에 잡아둔다 — 커서가 미리보기 위를 지나가도 그쪽 pan 핸들러가
+  // 반응해 다이어그램이 딸려 움직이지 않는다
+  function handleResizeStart(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setResizing(true)
+  }
+
+  function handleResizeMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizing) return
+    const rect = pageRef.current?.getBoundingClientRect()
+    if (!rect) return
+    applySplit(((e.clientX - rect.left) / rect.width) * 100)
+  }
+
+  function handleResizeEnd(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizing) return
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    setResizing(false)
+  }
+
   async function handleDelete(d: DiagramDto) {
     if (!(await confirm({ message: `'${d.title}' 차트를 삭제할까요?` }))) return
     try {
@@ -239,7 +296,11 @@ export function MermaidPage() {
   }
 
   return (
-    <div className="mermaid-page">
+    <div
+      ref={pageRef}
+      className={`mermaid-page${resizing ? ' resizing' : ''}`}
+      style={{ gridTemplateColumns: `${splitPct}fr 6px ${100 - splitPct}fr` }}
+    >
       <section className="mermaid-pane">
         <h2 className="memo-title">
           <Workflow size={18} /> mermaid 코드
@@ -296,6 +357,29 @@ export function MermaidPage() {
           </div>
         )}
       </section>
+
+      <div
+        className="mermaid-divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="코드·미리보기 너비 조절"
+        aria-valuenow={Math.round(splitPct)}
+        aria-valuemin={MIN_SPLIT}
+        aria-valuemax={MAX_SPLIT}
+        tabIndex={0}
+        onPointerDown={handleResizeStart}
+        onPointerMove={handleResizeMove}
+        onPointerUp={handleResizeEnd}
+        onPointerCancel={handleResizeEnd}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') applySplit(splitPct - 2)
+          else if (e.key === 'ArrowRight') applySplit(splitPct + 2)
+          else return
+          e.preventDefault()
+        }}
+        onDoubleClick={() => applySplit(50)}
+        title="드래그해 너비 조절 (더블클릭: 5:5)"
+      />
 
       <section className="mermaid-pane">
         <h2 className="memo-title">미리보기</h2>

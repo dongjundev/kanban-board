@@ -1267,15 +1267,38 @@ textarea {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* 열 비율은 인라인 스타일로 주입(분할선 드래그) — 여기 값은 폴백 */
+  grid-template-columns: 1fr 6px 1fr;
   gap: 16px;
   padding: 16px;
   background: var(--background);
 }
+/* 드래그 중 텍스트가 선택되며 끌리는 것을 막는다 */
+.mermaid-page.resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+.mermaid-divider {
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--border);
+  cursor: col-resize;
+  /* 드래그가 브라우저 기본 제스처에 뺏기지 않게 */
+  touch-action: none;
+}
+.mermaid-divider:hover,
+.mermaid-divider:focus-visible {
+  background: var(--primary);
+  outline: none;
+}
 @media (max-width: 900px) {
   .mermaid-page {
-    grid-template-columns: 1fr;
+    /* 인라인 스타일을 이길 수 있게 — 좁은 화면에서는 세로로 쌓는다 */
+    grid-template-columns: 1fr !important;
     overflow-y: auto;
+  }
+  .mermaid-divider {
+    display: none;
   }
 }
 .mermaid-pane {
