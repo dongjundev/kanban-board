@@ -59,6 +59,10 @@ const THEME_VARIABLES = {
     primaryTextColor: '#172b4d',
     primaryBorderColor: '#0c66e4',
     lineColor: '#44546f',
+    // 지정하지 않으면 시퀀스·간트 등이 lineColor 계열에서 흐린 색을 파생시킨다
+    textColor: '#172b4d',
+    actorTextColor: '#172b4d',
+    signalTextColor: '#172b4d',
     secondaryColor: '#e9f2ff',
     tertiaryColor: '#f7f8f9',
     clusterBkg: '#e9f2ff',
@@ -77,6 +81,10 @@ const THEME_VARIABLES = {
     primaryTextColor: '#f1f5f9',
     primaryBorderColor: '#85b8ff',
     lineColor: '#b6c2cf',
+    // 지정하지 않으면 시퀀스·간트 등이 lineColor 계열에서 흐린 색을 파생시킨다
+    textColor: '#f1f5f9',
+    actorTextColor: '#f1f5f9',
+    signalTextColor: '#f1f5f9',
     secondaryColor: '#23395e',
     tertiaryColor: '#2c333a',
     clusterBkg: '#2c333a',
@@ -86,6 +94,30 @@ const THEME_VARIABLES = {
     noteTextColor: '#f1f5f9',
     noteBorderColor: '#cf9f02',
   },
+}
+
+/** WCAG 상대 휘도. */
+function luminance(r: number, g: number, b: number): number {
+  const f = (c: number) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+
+const DARK_INK = '#172b4d'
+const LIGHT_INK = '#f1f5f9'
+const DARK_INK_LUM = luminance(23, 43, 77)
+const LIGHT_INK_LUM = luminance(241, 245, 249)
+
+/** 배경색 위에서 대비가 더 큰 글자색을 고른다. 판별 불가하면 null. */
+function inkFor(fill: string): string | null {
+  const n = fill.match(/\d+(\.\d+)?/g)
+  if (!n || n.length < 3) return null
+  if (n.length >= 4 && Number(n[3]) === 0) return null // 투명
+  const bg = luminance(Number(n[0]), Number(n[1]), Number(n[2]))
+  const contrast = (ink: number) => (Math.max(ink, bg) + 0.05) / (Math.min(ink, bg) + 0.05)
+  return contrast(DARK_INK_LUM) >= contrast(LIGHT_INK_LUM) ? DARK_INK : LIGHT_INK
 }
 
 const MIN_SCALE = 0.2
@@ -260,6 +292,25 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     return () => clearTimeout(timer)
     // theme이 바뀌면 같은 코드라도 다시 그린다 — mermaid는 렌더 시점의 테마를 SVG에 구워 넣는다
   }, [code, theme])
+
+  // mermaid의 글자색은 전역 설정 하나뿐이라, style/classDef로 직접 칠한 노드에도
+  // 같은 색이 얹힌다 — 다크 모드에서 밝게 칠한 노드는 흰 글씨가 겹쳐 안 보인다.
+  // 렌더된 뒤 실제 칠해진 색을 읽어 노드마다 글자색을 뒤집는다.
+  useEffect(() => {
+    const root = viewportRef.current?.querySelector('.mermaid-svg')
+    if (!root) return
+    for (const node of root.querySelectorAll('.node, .cluster')) {
+      const shape = node.querySelector('rect, polygon, ellipse, circle, path')
+      if (!shape) continue
+      const ink = inkFor(getComputedStyle(shape).fill)
+      if (!ink) continue
+      // span(foreignObject 라벨)은 color, <text>는 fill로 칠해진다
+      for (const el of node.querySelectorAll<HTMLElement>('.nodeLabel, .cluster-label, span, p, text')) {
+        el.style.color = ink
+        el.style.fill = ink
+      }
+    }
+  }, [svg])
 
   async function handleSave() {
     const trimmed = title.trim()
