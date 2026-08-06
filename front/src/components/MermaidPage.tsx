@@ -120,6 +120,41 @@ function inkFor(fill: string): string | null {
   return contrast(DARK_INK_LUM) >= contrast(LIGHT_INK_LUM) ? DARK_INK : LIGHT_INK
 }
 
+/**
+ * 노드 글자색을 실제 칠해진 배경에 맞춰 SVG 문자열에 미리 구워 넣는다.
+ *
+ * 렌더된 뒤 DOM을 직접 고치는 방식은 쓸 수 없다 — 확대·이동으로 리렌더되면
+ * React가 dangerouslySetInnerHTML을 다시 써서 나중에 입힌 인라인 스타일이
+ * 통째로 날아간다(첫 렌더 직후에만 맞고 조작하는 순간 원래대로 돌아간다).
+ * 그래서 화면 밖 컨테이너에 잠깐 붙여 계산색을 읽고, 고친 결과를 문자열로
+ * 되돌려 state에 넣는다. mermaid가 SVG 안에 style을 함께 넣어주므로
+ * 떼어놓은 컨테이너에서도 실제 채움색이 그대로 계산된다.
+ */
+function bakeInk(markup: string): string {
+  const holder = document.createElement('div')
+  holder.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden'
+  holder.innerHTML = markup
+  document.body.appendChild(holder)
+  try {
+    for (const node of holder.querySelectorAll('.node, .cluster')) {
+      // label-container가 진짜 배경 도형이다. 없을 때만 첫 도형으로 넘어간다
+      // (라벨 뒤에 깔리는 보조 rect를 배경으로 오인하지 않도록).
+      const shape =
+        node.querySelector('.label-container') ?? node.querySelector('rect, polygon, ellipse, circle, path')
+      if (!shape) continue
+      const ink = inkFor(getComputedStyle(shape).fill)
+      if (!ink) continue
+      for (const el of node.querySelectorAll<HTMLElement>('.nodeLabel, .cluster-label, span, p, text, tspan')) {
+        el.style.color = ink
+        el.style.fill = ink
+      }
+    }
+    return holder.innerHTML
+  } finally {
+    holder.remove()
+  }
+}
+
 const MIN_SCALE = 0.2
 const MAX_SCALE = 20
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
@@ -280,7 +315,7 @@ export function MermaidPage({ theme }: MermaidPageProps) {
           await mermaid.parse(source)
           const { svg: rendered } = await mermaid.render(`mermaid-preview-${seq}`, source)
           if (seq !== seqRef.current) return
-          setSvg(rendered)
+          setSvg(bakeInk(rendered))
           setSyntaxError(null)
         } catch (e) {
           if (seq !== seqRef.current) return
@@ -292,25 +327,6 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     return () => clearTimeout(timer)
     // theme이 바뀌면 같은 코드라도 다시 그린다 — mermaid는 렌더 시점의 테마를 SVG에 구워 넣는다
   }, [code, theme])
-
-  // mermaid의 글자색은 전역 설정 하나뿐이라, style/classDef로 직접 칠한 노드에도
-  // 같은 색이 얹힌다 — 다크 모드에서 밝게 칠한 노드는 흰 글씨가 겹쳐 안 보인다.
-  // 렌더된 뒤 실제 칠해진 색을 읽어 노드마다 글자색을 뒤집는다.
-  useEffect(() => {
-    const root = viewportRef.current?.querySelector('.mermaid-svg')
-    if (!root) return
-    for (const node of root.querySelectorAll('.node, .cluster')) {
-      const shape = node.querySelector('rect, polygon, ellipse, circle, path')
-      if (!shape) continue
-      const ink = inkFor(getComputedStyle(shape).fill)
-      if (!ink) continue
-      // span(foreignObject 라벨)은 color, <text>는 fill로 칠해진다
-      for (const el of node.querySelectorAll<HTMLElement>('.nodeLabel, .cluster-label, span, p, text')) {
-        el.style.color = ink
-        el.style.fill = ink
-      }
-    }
-  }, [svg])
 
   async function handleSave() {
     const trimmed = title.trim()

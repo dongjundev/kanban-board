@@ -26,7 +26,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # E2E (e2e/ — 프레임워크 없는 단독 실행형 Playwright 스크립트, node smoke*.mjs)
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
-#  - 나머지 9개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
+#  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
 
