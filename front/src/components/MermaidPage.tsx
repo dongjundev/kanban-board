@@ -46,6 +46,45 @@ function loadDraft(): Draft {
   return { id: null, title: '', code: raw }
 }
 
+/**
+ * mermaid 기본 테마는 시인성이 약하다 — 라이트는 연보라 노드에 흐린 테두리,
+ * 다크는 노드가 배경과 명도가 비슷해 뭉개진다. 'base' 테마 위에 앱 팔레트
+ * (index.css의 Atlassian 토큰)를 얹어 노드가 배경에서 확실히 떠 보이게 한다.
+ * base는 지정하지 않은 색을 여기서 파생시키므로 핵심 변수만 준다.
+ */
+const THEME_VARIABLES = {
+  light: {
+    background: '#f1f2f4', // 미리보기 배경(--column-bg)과 일치
+    primaryColor: '#ffffff', // 노드는 흰 카드 — 회색 배경 위에서 떠 보인다
+    primaryTextColor: '#172b4d',
+    primaryBorderColor: '#0c66e4',
+    lineColor: '#44546f',
+    secondaryColor: '#e9f2ff',
+    tertiaryColor: '#f7f8f9',
+    clusterBkg: '#e9f2ff',
+    clusterBorder: '#8fb8f6',
+    edgeLabelBackground: '#ffffff',
+    noteBkgColor: '#fff7d6',
+    noteTextColor: '#172b4d',
+    noteBorderColor: '#e2b203',
+  },
+  dark: {
+    background: '#1d2125',
+    primaryColor: '#2c333a', // 배경(#1d2125)보다 밝게 — 이게 다크 뭉개짐의 핵심
+    primaryTextColor: '#dee4ea',
+    primaryBorderColor: '#579dff',
+    lineColor: '#9fadbc',
+    secondaryColor: '#1c2b41',
+    tertiaryColor: '#22272b',
+    clusterBkg: '#22272b',
+    clusterBorder: '#454f59',
+    edgeLabelBackground: '#1d2125',
+    noteBkgColor: '#332e1b',
+    noteTextColor: '#dee4ea',
+    noteBorderColor: '#946f00',
+  },
+}
+
 const MIN_SCALE = 0.2
 const MAX_SCALE = 20
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
@@ -196,7 +235,12 @@ export function MermaidPage({ theme }: MermaidPageProps) {
           mermaid.initialize({
             startOnLoad: false,
             suppressErrorRendering: true,
-            theme: theme === 'dark' ? 'dark' : 'default',
+            theme: 'base',
+            themeVariables: {
+              fontFamily:
+                "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Malgun Gothic', sans-serif",
+              ...THEME_VARIABLES[theme],
+            },
           })
           await mermaid.parse(source)
           const { svg: rendered } = await mermaid.render(`mermaid-preview-${seq}`, source)
