@@ -1310,6 +1310,9 @@ span.app-tab {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* 그리드 아이템 기본값 min-width:auto면 내용의 최소 너비 아래로 줄지 않아,
+     분할선을 끌어도 패널이 멈춰서 커서만 앞서간다 */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1395,6 +1398,7 @@ span.app-tab {
 }
 .mermaid-toolbar {
   display: flex;
+  flex-wrap: wrap; /* 패널을 좁히면 버튼이 줄바꿈되어 넘치지 않는다 */
   gap: 8px;
   margin-bottom: 10px;
 }

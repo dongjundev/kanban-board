@@ -46,7 +46,6 @@ function loadDraft(): Draft {
   return { id: null, title: '', code: raw }
 }
 
-
 const MIN_SCALE = 0.2
 const MAX_SCALE = 20
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
@@ -113,6 +112,9 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   const [serverAvailable, setServerAvailable] = useState(true)
   const [serverError, setServerError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // 저장 중복 방지는 state가 아니라 ref로 — 제목칸 Enter 연타는 리렌더 사이에 연달아
+  // 들어와 saving state가 아직 true가 아니어서, 같은 차트가 여러 벌 저장된다
+  const savingRef = useRef(false)
   // 타이핑 중 늦게 끝난 이전 렌더가 최신 결과를 덮어쓰지 않도록 하는 순번
   const seqRef = useRef(0)
   // 미리보기 확대/이동. transform-origin이 center라 배율 1·오프셋 0이면 기존 중앙 정렬 그대로다
@@ -124,6 +126,7 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   const [splitPct, setSplitPct] = useState(loadSplit)
   const [resizing, setResizing] = useState(false)
   const pageRef = useRef<HTMLDivElement>(null)
+  const resizeStart = useRef({ x: 0, pct: 50, track: 0 })
   const { confirm } = useConfirm()
 
   /** (dx, dy)는 뷰포트 중심 기준 좌표 — 그 지점을 고정한 채 배율만 바꾼다. */
@@ -142,6 +145,10 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     const el = viewportRef.current
     if (!el) return
     function onWheel(this: HTMLDivElement, e: WheelEvent) {
+      // 그려진 그림이 없으면 무시 — 빈 화면에서 굴린 배율이 쌓여 있다가
+      // 코드를 입력하는 순간 엉뚱한 배율로 나타난다. DOM을 직접 보므로
+      // 리스너를 다시 붙이지 않아도 최신 상태를 반영한다.
+      if (!this.querySelector('.mermaid-svg')) return
       e.preventDefault()
       const rect = this.getBoundingClientRect()
       zoomAt(
@@ -209,7 +216,8 @@ export function MermaidPage({ theme }: MermaidPageProps) {
 
   async function handleSave() {
     const trimmed = title.trim()
-    if (!trimmed || !code.trim()) return
+    if (savingRef.current || !trimmed || !code.trim()) return
+    savingRef.current = true
     setSaving(true)
     setServerError(null)
     try {
@@ -222,6 +230,7 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     } catch (e) {
       setServerError(errorMessage(e))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -274,14 +283,23 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   function handleResizeStart(e: React.PointerEvent<HTMLDivElement>) {
     if (e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)
+    // 두 패널의 실제 너비 합(=fr이 나눠 갖는 트랙)을 기준으로 상대 이동을 계산한다.
+    // 컨테이너 전체 폭으로 절대 위치를 계산하면 padding·gap·분할선 두께만큼
+    // 커서와 분할선이 어긋난다(300px 끌면 약 16px 오차).
+    const panes = pageRef.current?.querySelectorAll('.mermaid-pane')
+    const track =
+      panes && panes.length === 2
+        ? panes[0].getBoundingClientRect().width + panes[1].getBoundingClientRect().width
+        : 0
+    resizeStart.current = { x: e.clientX, pct: splitPct, track }
     setResizing(true)
   }
 
   function handleResizeMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!resizing) return
-    const rect = pageRef.current?.getBoundingClientRect()
-    if (!rect) return
-    applySplit(((e.clientX - rect.left) / rect.width) * 100)
+    const { x, pct, track } = resizeStart.current
+    if (track <= 0) return
+    applySplit(pct + ((e.clientX - x) / track) * 100)
   }
 
   function handleResizeEnd(e: React.PointerEvent<HTMLDivElement>) {
