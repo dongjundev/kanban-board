@@ -70,18 +70,21 @@ const THEME_VARIABLES = {
   },
   dark: {
     background: '#1d2125',
-    primaryColor: '#2c333a', // 배경(#1d2125)보다 밝게 — 이게 다크 뭉개짐의 핵심
-    primaryTextColor: '#dee4ea',
-    primaryBorderColor: '#579dff',
-    lineColor: '#9fadbc',
-    secondaryColor: '#1c2b41',
-    tertiaryColor: '#22272b',
-    clusterBkg: '#22272b',
-    clusterBorder: '#454f59',
+    // 노드는 배경(#1d2125)과 확실히 벌어져야 한다. #2c333a는 대비 1.27:1로
+    // 사실상 배경과 붙어 보여 테두리만 뜨고 전체가 뭉개졌다. #454f59는 배경 대비
+    // 1.95:1로 형태가 살면서, 텍스트(#f1f5f9)와는 7.3:1을 확보한다.
+    primaryColor: '#454f59',
+    primaryTextColor: '#f1f5f9',
+    primaryBorderColor: '#85b8ff',
+    lineColor: '#b6c2cf',
+    secondaryColor: '#23395e',
+    tertiaryColor: '#2c333a',
+    clusterBkg: '#2c333a',
+    clusterBorder: '#5a6572',
     edgeLabelBackground: '#1d2125',
-    noteBkgColor: '#332e1b',
-    noteTextColor: '#dee4ea',
-    noteBorderColor: '#946f00',
+    noteBkgColor: '#4a3f1a',
+    noteTextColor: '#f1f5f9',
+    noteBorderColor: '#cf9f02',
   },
 }
 
