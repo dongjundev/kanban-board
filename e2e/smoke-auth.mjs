@@ -5,6 +5,7 @@ import { chromium } from 'playwright'
 // 다른 스위트들과 달리 인증을 켠 상태를 전제로 하므로 단독으로 실행하세요.
 const BASE = 'http://localhost:5175'
 const API = 'http://localhost:8080'
+const USERNAME = 'admin'
 const PASSWORD = 'test-pw'
 let failures = 0
 
@@ -15,6 +16,7 @@ function check(name, cond, extra = '') {
 
 async function login(page) {
   await page.waitForSelector('.login-card', { timeout: 25000 })
+  await page.locator('.login-input').nth(0).fill(USERNAME)
   await page.locator('.login-input').nth(1).fill(PASSWORD)
   await page.getByRole('button', { name: /로그인/ }).click()
   await page.waitForSelector('.column', { timeout: 25000 })
@@ -46,12 +48,18 @@ check('로그인 화면 표시', true)
 check('로그인 전 보드 미마운트', (await page.locator('.column').count()) === 0)
 
 // ── 잘못된 자격증명
+await page.locator('.login-input').nth(0).fill(USERNAME)
 await page.locator('.login-input').nth(1).fill('wrong-password')
 await page.getByRole('button', { name: /로그인/ }).click()
 await page.waitForSelector('.login-error', { timeout: 15000 })
 check('오답 시 오류 표시 + 화면 유지', await page.locator('.login-card').isVisible())
 
+// ── 아이디가 비어 있으면 제출 자체가 막힌다
+await page.locator('.login-input').nth(0).fill('')
+check('아이디 없으면 버튼 비활성', await page.getByRole('button', { name: /로그인/ }).isDisabled())
+
 // ── 정상 로그인
+await page.locator('.login-input').nth(0).fill(USERNAME)
 await page.locator('.login-input').nth(1).fill(PASSWORD)
 await page.getByRole('button', { name: /로그인/ }).click()
 await page.waitForSelector('.column', { timeout: 25000 })

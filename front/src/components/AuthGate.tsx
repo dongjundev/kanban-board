@@ -16,7 +16,7 @@ interface AuthGateProps {
  */
 export function AuthGate({ children }: AuthGateProps) {
   const [state, setState] = useState<AuthState | null>(null)
-  const [username, setUsername] = useState('admin')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -38,7 +38,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (busy || !password) return
+    if (busy || !username || !password) return
     setBusy(true)
     setError(null)
     try {
@@ -87,7 +87,7 @@ export function AuthGate({ children }: AuthGateProps) {
             />
           </label>
           {error && <div className="login-error">{error}</div>}
-          <button className="btn btn-primary login-submit" type="submit" disabled={busy || !password}>
+          <button className="btn btn-primary login-submit" type="submit" disabled={busy || !username || !password}>
             <LogIn size={16} /> {busy ? '확인 중…' : '로그인'}
           </button>
         </form>
