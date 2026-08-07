@@ -43,9 +43,9 @@ public class FileController {
         String key = storage.store(file);
         StoredFile stored = new StoredFile();
         String name = file.getOriginalFilename();
-        stored.setFilename(name == null || name.isBlank() ? "unnamed" : name);
+        stored.setFilename(fit(name == null || name.isBlank() ? "unnamed" : name));
         String type = file.getContentType();
-        stored.setContentType(type == null || type.isBlank() ? "application/octet-stream" : type);
+        stored.setContentType(fit(type == null || type.isBlank() ? "application/octet-stream" : type));
         stored.setSize(file.getSize());
         stored.setStorageKey(key);
         repository.save(stored);
@@ -85,6 +85,14 @@ public class FileController {
         storage.delete(stored.getStorageKey());
         repository.delete(stored);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * filename·contentType 컬럼은 varchar(255)다. 그대로 넘기면 DB 제약 위반이 500으로
+     * 새어 나가고, 바이트는 이미 디스크에 쓰인 뒤라 아무도 참조하지 않는 파일이 남는다.
+     */
+    private static String fit(String value) {
+        return value.length() <= 255 ? value : value.substring(0, 255);
     }
 
     public record FileResponse(Long id, String filename, String contentType, long size, String createdAt) {

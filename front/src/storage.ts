@@ -5,6 +5,15 @@ import { uid } from './utils'
 const LEGACY_BOARD_KEY = 'kanban-board-state-v1'
 export const WORKSPACE_KEY = 'kanban-workspace-v1'
 
+/**
+ * `id in obj`는 프로토타입 체인까지 본다 — 'constructor'·'toString' 같은 id가
+ * 존재하는 키로 통과해, 검증을 통과한 데이터가 렌더에서 undefined를 터뜨린다
+ * (흰 화면). 검증은 반드시 own 속성만 인정해야 한다.
+ */
+function hasOwn(obj: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -45,10 +54,10 @@ function isValidState(value: unknown): value is BoardState {
   if (!Object.values(columns).every(isValidColumn)) return false
   if (!Object.values(cards).every(isValidCard)) return false
   if (!Object.values(labels).every(isValidLabel)) return false
-  if (!columnOrder.every((id) => id in columns)) return false
+  if (!columnOrder.every((id) => hasOwn(columns, id))) return false
   // 모든 컬럼의 cardIds가 실제 존재하는 카드를 가리키는지
   const columnList = Object.values(columns) as Array<{ cardIds: string[] }>
-  return columnList.every((col) => col.cardIds.every((cardId) => cardId in cards))
+  return columnList.every((col) => col.cardIds.every((cardId) => hasOwn(cards, cardId)))
 }
 
 export function isValidWorkspace(value: unknown): value is Workspace {
@@ -59,8 +68,8 @@ export function isValidWorkspace(value: unknown): value is Workspace {
   if (!Object.values(boards).every(isValidState)) return false
   // boardOrder와 boards 키가 정확히 일치하고 활성 보드가 존재해야 함
   const keys = Object.keys(boards)
-  if (keys.length !== boardOrder.length || !boardOrder.every((id) => id in boards)) return false
-  return activeBoardId in boards
+  if (keys.length !== boardOrder.length || !boardOrder.every((id) => hasOwn(boards, id))) return false
+  return hasOwn(boards, activeBoardId)
 }
 
 /** JSON 문자열 → 검증된 BoardState (실패 시 null) */

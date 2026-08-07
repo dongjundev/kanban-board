@@ -128,7 +128,7 @@ export function CardModal({ card, onClose }: CardModalProps) {
       >
         <div className="modal-header">
           <span className="modal-context">{column ? column.title : ''}</span>
-          <button className="btn btn-icon" aria-label="닫기" onClick={onClose}>
+          <button className="btn btn-icon" aria-label="닫기" onClick={closeWithCommit}>
             <X size={20} />
           </button>
         </div>

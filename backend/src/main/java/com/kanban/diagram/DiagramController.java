@@ -31,7 +31,7 @@ public class DiagramController {
 
     @PostMapping
     public ResponseEntity<DiagramResponse> create(@RequestBody DiagramRequest request) {
-        if (isBlank(request)) {
+        if (isInvalid(request)) {
             return ResponseEntity.badRequest().build();
         }
         Diagram diagram = new Diagram();
@@ -43,7 +43,7 @@ public class DiagramController {
 
     @PutMapping("/{id}")
     public ResponseEntity<DiagramResponse> update(@PathVariable Long id, @RequestBody DiagramRequest request) {
-        if (isBlank(request)) {
+        if (isInvalid(request)) {
             return ResponseEntity.badRequest().build();
         }
         return repository
@@ -67,10 +67,14 @@ public class DiagramController {
         return ResponseEntity.noContent().build();
     }
 
-    private static boolean isBlank(DiagramRequest request) {
+    /** 제목 컬럼은 varchar(255) — 검증 없이 넘기면 DB 제약 위반이 500으로 새어 나간다. */
+    static final int MAX_TITLE_LENGTH = 200;
+
+    private static boolean isInvalid(DiagramRequest request) {
         return request == null
                 || request.title() == null
                 || request.title().isBlank()
+                || request.title().trim().length() > MAX_TITLE_LENGTH
                 || request.code() == null
                 || request.code().isBlank();
     }

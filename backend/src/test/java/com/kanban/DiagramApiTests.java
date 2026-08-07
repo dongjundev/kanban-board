@@ -80,6 +80,20 @@ class DiagramApiTests {
         assertThat(afterDelete.getBody()).doesNotContain("배포 구조");
     }
 
+    @Test
+    void 너무_긴_제목은_500이_아니라_400() {
+        // 제목 컬럼은 varchar(255) — 검증이 없으면 DB 제약 위반이 500으로 새어 나간다.
+        // UI 입력칸에도 길이 제한이 있지만 API를 직접 호출하면 도달 가능하다.
+        HttpHeaders json = new HttpHeaders();
+        json.setContentType(MediaType.APPLICATION_JSON);
+        String longTitle = "가".repeat(300);
+        ResponseEntity<String> res = rest.postForEntity(
+                "/api/diagrams",
+                new HttpEntity<>("{\"title\":\"" + longTitle + "\",\"code\":\"flowchart TD\\n A-->B\"}", json),
+                String.class);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private long extractFirstId(String jsonBody) {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\":(\\d+)").matcher(jsonBody);
         assertThat(m.find()).isTrue();

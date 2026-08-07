@@ -145,6 +145,40 @@ describe('RESTORE_BOARD_LAYOUT (드래그 취소 롤백)', () => {
     expect(workspaceReducer(ws, { type: 'RESTORE_BOARD_LAYOUT', boardId: 'nope', ...snapshot })).toBe(ws)
   })
 
+  // 다른 탭이 드래그 중에 컬럼을 만들고, 그 컬럼으로 카드를 옮긴 뒤 취소한 경우.
+  // 스냅샷 컬럼과 신규 컬럼이 같은 카드를 동시에 참조하면 화면에 카드가 두 번 나오고,
+  // 이후 이동/삭제가 한쪽만 고쳐 유령 카드가 영구히 남는다.
+  it('스냅샷 이후 생긴 컬럼을 병합해도 카드가 두 컬럼에 중복되지 않는다', () => {
+    let ws = { ...makeWorkspace(), activeBoardId: 'b1' } // 보드 액션은 활성 보드에 위임된다
+    ws = workspaceReducer(ws, {
+      type: 'ADD_CARD',
+      columnId: 'col',
+      card: { id: 'c1', title: '카드', description: '', labelIds: [], assignee: '', dueDate: null, createdAt: 'x' },
+    })
+    // 드래그 중 다른 탭이 만든 컬럼으로 카드가 옮겨진 상태를 재현
+    ws = workspaceReducer(ws, { type: 'ADD_COLUMN', column: { id: 'newcol', title: '신규', cardIds: [] } })
+    ws = workspaceReducer(ws, { type: 'MOVE_CARD', cardId: 'c1', toColumnId: 'newcol', toIndex: 0 })
+
+    const next = workspaceReducer(ws, { type: 'RESTORE_BOARD_LAYOUT', boardId: 'b1', ...snapshot })
+    const refs = Object.values(next.boards.b1.columns).flatMap((c) => c.cardIds)
+    expect(refs.filter((id) => id === 'c1')).toHaveLength(1)
+    expect(next.boards.b1.columns.col.cardIds).toContain('c1') // 스냅샷 위치로 되돌아감
+    expect(next.boards.b1.columns.newcol.cardIds).not.toContain('c1')
+  })
+
+  it('스냅샷 이후 삭제된 컬럼을 되살리지 않는다', () => {
+    let ws = { ...makeWorkspace(), activeBoardId: 'b1' }
+    ws = workspaceReducer(ws, { type: 'ADD_COLUMN', column: { id: 'gone', title: '사라질 컬럼', cardIds: [] } })
+    const snap = {
+      columns: { col: { id: 'col', title: '할 일', cardIds: [] }, gone: { id: 'gone', title: '사라질 컬럼', cardIds: [] } },
+      columnOrder: ['col', 'gone'],
+    }
+    ws = workspaceReducer(ws, { type: 'DELETE_COLUMN', columnId: 'gone' }) // 드래그 중 다른 탭이 삭제
+    const next = workspaceReducer(ws, { type: 'RESTORE_BOARD_LAYOUT', boardId: 'b1', ...snap })
+    expect(Object.keys(next.boards.b1.columns)).not.toContain('gone')
+    expect(next.boards.b1.columnOrder).not.toContain('gone')
+  })
+
   it('레이아웃만 복원하고 카드 내용(cards 맵)은 보존한다', () => {
     let ws = makeWorkspace()
     ws = workspaceReducer(ws, {
@@ -275,5 +309,22 @@ describe('parseWorkspace 검증', () => {
     expect(parseWorkspace(JSON.stringify({ ...ws, boardOrder: ['b1', 'b2'] }))).toBeNull()
     expect(parseWorkspace(JSON.stringify({ ...ws, boards: { ...ws.boards, broken: {} } }))).toBeNull()
     expect(parseWorkspace('{"boards":{},"boardOrder":[],"activeBoardId":"x"}')).toBeNull()
+  })
+
+  // `id in obj`는 프로토타입 체인까지 보므로 'constructor' 같은 id가 통과해버린다.
+  // 통과하면 렌더에서 undefined.cardIds를 읽어 흰 화면이 된다.
+  it('프로토타입 체인 키를 실재하는 id로 인정하지 않는다', () => {
+    const poisoned = {
+      boards: { b1: { boardTitle: 'x', columns: {}, columnOrder: ['constructor'], cards: {}, labels: {} } },
+      boardOrder: ['b1'],
+      activeBoardId: 'b1',
+    }
+    expect(parseWorkspace(JSON.stringify(poisoned))).toBeNull()
+
+    const board = { boardTitle: 'x', columns: { col: { id: 'col', title: 't', cardIds: ['toString'] } }, columnOrder: ['col'], cards: {}, labels: {} }
+    expect(parseWorkspace(JSON.stringify({ boards: { b1: board }, boardOrder: ['b1'], activeBoardId: 'b1' }))).toBeNull()
+
+    const ok = { boardTitle: 'x', columns: { col: { id: 'col', title: 't', cardIds: [] } }, columnOrder: ['col'], cards: {}, labels: {} }
+    expect(parseWorkspace(JSON.stringify({ boards: { b1: ok }, boardOrder: ['b1'], activeBoardId: 'constructor' }))).toBeNull()
   })
 })

@@ -44,6 +44,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - **PUT은 `baseVersion` 선행조건** 포함 — 서버가 불일치 시 409, 클라이언트는 pull + 충돌 토스트(`window` CustomEvent `kanban:sync-conflict` → AppInner가 수신). 실패 시 dirty 복구 + 3초 재시도.
 - **에코 억제**(`skipNextPersist`: 'all' | 'remote'): 동기화로 받은 상태를 되저장하면 탭 간 무한 쓰기 루프가 생긴다 (두 탭의 activeBoardId가 달라 저장 문자열이 영원히 수렴하지 않음).
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
+- **검증(`isValidWorkspace`)은 `id in obj`가 아니라 own 속성으로 확인한다** — `in`은 프로토타입 체인까지 봐서 `constructor`·`toString` 같은 id가 존재하는 키로 통과하고, 렌더에서 `undefined.cardIds`를 읽어 흰 화면이 된다. 반대로 검증에 실패한 서버 문서는 'offline'로 처리되어 앱이 **조용히 localStorage 모드**로 빠지므로(사용자는 동기화되는 줄 안다) 콘솔 경고를 남긴다.
 - 미러 저장은 leading(첫 변경 즉시) + trailing(400ms) — 드래그 중 매 dispatch 직렬화 방지. 테스트에서 localStorage를 clear한 직후 reload하면 대기 중이던 trailing 쓰기가 키를 되살릴 수 있으니 600ms 정착 대기.
 - 백엔드 감지는 `/api/workspace/version`(항상 200 JSON)으로 — `/api/workspace`의 404는 정적 호스팅 폴백과 구분 불가.
 - **`/api/**` 응답은 `NoCacheFilter`가 `Cache-Control: no-store`를 붙인다.** 캐시 지시자가 없으면 중간 캐시가 응답을 임의로 재사용해도 규격 위반이 아니다 — 평문 HTTP에서는 경로상의 프록시가 그대로 캐시해, 한 PC의 변경이 다른 PC의 새로고침에 간헐적으로 안 보이는 형태로 나타난다(네트워크마다 달라 재현이 어렵다).
@@ -55,7 +56,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 ### 드래그&드롭 (dnd-kit multiple-containers)
 
-`onDragOver`가 컬럼 간 이동을 실시간 dispatch(라이브 프리뷰)하므로 취소 시 복원이 필수. 스냅샷은 **보드 id에 바인딩 + 레이아웃(columns/columnOrder)만** 담는다 — 드래그 중 활성 보드가 바뀌거나 다른 탭이 편집해도 오염되지 않게. `RESTORE_BOARD_LAYOUT`은 스냅샷 이후 생긴 컬럼/카드를 병합해 고아를 만들지 않고, cards 맵에 없는 참조를 걸러 검증 무결성을 지킨다. 센서: Mouse 4px / Touch 250ms 길게누름(CSS `touch-action: manipulation`과 세트) / Keyboard(카드에서 Enter=모달 열기, Space=드래그).
+`onDragOver`가 컬럼 간 이동을 실시간 dispatch(라이브 프리뷰)하므로 취소 시 복원이 필수. 스냅샷은 **보드 id에 바인딩 + 레이아웃(columns/columnOrder)만** 담는다 — 드래그 중 활성 보드가 바뀌거나 다른 탭이 편집해도 오염되지 않게. `RESTORE_BOARD_LAYOUT`의 병합은 세 가지를 동시에 지켜야 한다: ①스냅샷 이후 생긴 컬럼/카드를 보존해 고아를 만들지 않고, ②그 컬럼의 cardIds에서 **스냅샷이 이미 갖고 있는 카드를 빼며**(안 그러면 드래그 중 옮겨진 카드가 두 컬럼에 동시에 존재해 유령 카드가 영구히 남는다), ③현재 보드에 **없는 컬럼은 되살리지 않는다**(다른 탭이 삭제한 컬럼이 부활한다). cards 맵에 없는 참조도 걸러 검증 무결성을 지킨다. 센서: Mouse 4px / Touch 250ms 길게누름(CSS `touch-action: manipulation`과 세트) / Keyboard(카드에서 Enter=모달 열기, Space=드래그).
 
 ### UI 레이어링 규약 (깨지기 쉬움)
 
@@ -63,6 +64,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - `useClickOutside`는 캡처 단계 + confirm 레이어 내부 클릭 무시. composer들은 `'click'` 이벤트 모드 사용 — pointerdown에 닫으면 dnd 측정 전에 레이아웃이 변형되어 드래그 오버레이가 어긋난다.
 - 컬럼 헤더에 dnd `{...listeners}`가 스프레드되므로 내부 컨트롤은 `stopDndSensorEvents`(pointer/mouse/touch 3종)로 버블 차단 — 센서마다 듣는 이벤트가 다르다.
 - 모든 Enter/Esc 처리 입력에 `e.nativeEvent.isComposing` 가드 필수 (한글 IME — 조합 확정 Enter가 중복 제출됨).
+- **키보드로 제출되는 저장은 `saving` state가 아니라 ref로 중복을 막는다** — 연타(키 자동반복 포함)는 리렌더 사이에 연달아 들어와 state가 아직 true가 아니므로 같은 것이 여러 벌 저장된다. 버튼 `disabled`는 키보드 경로를 막지 못한다.
+- 팝오버는 Esc로 닫혀야 한다. `onKeyDown`으로 키를 밖으로 내보내지 않는 팝오버(컬럼 ⋯ 메뉴)는 **자기 자신이 Esc를 처리**해야 한다.
 - CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
 
 ### 백엔드 (문서형 API)
@@ -73,6 +76,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - `@Lob`을 쓰면 PostgreSQL에서 `oid`(Large Object)가 되어 `open-in-view=false`와 함께 GET이 깨진다.
 - `length`를 빼면 `varchar(32600)`이 되어, 데이터가 32,600자를 넘는 순간부터 **모든 저장이 500으로 실패**한다(보드가 쌓인 워크스페이스, 긴 메모, 큰 다이어그램에서 실제로 도달하는 크기). 새 엔티티를 추가할 때 특히 조심.
 - `ddl-auto=update`는 **기존 컬럼 타입을 바꾸지 않는다** — 매핑을 고쳐도 이미 배포된 DB는 `ALTER TABLE ... TYPE text`를 수동 실행해야 한다.
+
+**길이를 지정하지 않은 문자열 컬럼은 varchar(255)다.** 컨트롤러에서 길이를 검증하거나 잘라 넣지 않으면 DB 제약 위반이 **500으로 새어 나간다**(전역 예외 핸들러가 없다). 파일처럼 바이트를 먼저 디스크에 쓰는 경로에서는 저장 실패가 참조 없는 고아 파일까지 남긴다.
 
 ### 로그인 (선택 — 환경변수로 켜짐)
 

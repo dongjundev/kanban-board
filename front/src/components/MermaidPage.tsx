@@ -449,6 +449,7 @@ export function MermaidPage({ theme }: MermaidPageProps) {
           <div className="mermaid-toolbar">
             <input
               className="mermaid-title-input"
+              maxLength={200}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="차트 제목"

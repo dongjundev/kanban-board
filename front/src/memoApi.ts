@@ -62,3 +62,10 @@ export async function deleteFile(id: number): Promise<void> {
 export function fileDownloadUrl(id: number): string {
   return `/api/files/${id}`
 }
+
+/** apiFetch 경유 — 세션이 끊겼을 때 401이 감지되어 로그인 화면으로 돌아간다. */
+export async function downloadFile(id: number): Promise<Blob> {
+  const res = await apiFetch(fileDownloadUrl(id))
+  if (!res.ok) throw new Error('파일을 내려받지 못했습니다')
+  return res.blob()
+}

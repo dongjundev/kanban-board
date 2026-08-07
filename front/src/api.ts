@@ -29,7 +29,10 @@ export async function fetchRemoteWorkspace(): Promise<FetchResult> {
     ) {
       return { version: (data as { version: number }).version, workspace: (data as { workspace: Workspace }).workspace }
     }
-    // 서버 응답이 검증을 통과하지 못하면 로컬 데이터를 지키기 위해 빈 서버처럼 취급하지 않는다
+    // 서버 응답이 검증을 통과하지 못하면 로컬 데이터를 지키기 위해 빈 서버처럼 취급하지 않는다.
+    // 다만 이 경우 앱은 '백엔드 없음'과 똑같이 조용히 localStorage 모드로 동작하므로,
+    // 사용자는 동기화되는 줄 알지만 실제로는 아니다 — 최소한 진단은 가능하도록 남긴다.
+    console.warn('[kanban] 서버 워크스페이스가 검증을 통과하지 못해 localStorage 모드로 동작합니다')
     return 'offline'
   } catch {
     return 'offline'

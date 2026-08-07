@@ -66,14 +66,23 @@ export function workspaceReducer(ws: Workspace, action: WorkspaceAction): Worksp
       const board = ws.boards[action.boardId]
       if (!board) return ws
 
-      // 스냅샷을 기반으로 하되, 스냅샷 이후(예: 다른 탭에서) 생긴 컬럼은 보존
-      const columns: Record<string, Column> = { ...action.columns }
-      const columnOrder = [...action.columnOrder]
-      for (const [id, column] of Object.entries(board.columns)) {
-        if (!columns[id]) {
-          columns[id] = column
+      // 스냅샷을 기반으로 하되, 스냅샷 이후(예: 다른 탭에서) 생긴 컬럼은 보존.
+      // 단, 그 사이 삭제된 컬럼을 되살리면 안 되므로 현재 보드에 남아 있는 것만 취한다.
+      const columns: Record<string, Column> = {}
+      const columnOrder: string[] = []
+      for (const id of action.columnOrder) {
+        if (board.columns[id] && action.columns[id]) {
+          columns[id] = action.columns[id]
           columnOrder.push(id)
         }
+      }
+      // 스냅샷 이후 생긴 컬럼을 덧붙인다. 이때 스냅샷이 이미 갖고 있는 카드는 빼야 한다 —
+      // 드래그 중 그 컬럼으로 옮겨진 카드를 그대로 두면 두 컬럼에 동시에 존재하게 된다.
+      const fromSnapshot = new Set(Object.values(columns).flatMap((c) => c.cardIds))
+      for (const [id, column] of Object.entries(board.columns)) {
+        if (columns[id]) continue
+        columns[id] = { ...column, cardIds: column.cardIds.filter((cardId) => !fromSnapshot.has(cardId)) }
+        columnOrder.push(id)
       }
       // 스냅샷 이후 삭제된 카드를 가리키는 참조 제거 (검증 무결성 유지)
       for (const [id, column] of Object.entries(columns)) {

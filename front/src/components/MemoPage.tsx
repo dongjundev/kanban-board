@@ -25,6 +25,9 @@ export function MemoPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  // 저장 중복 방지는 state가 아니라 ref로 — ⌘/Ctrl+Enter 연타(키 자동반복 포함)는
+  // 리렌더 사이에 연달아 들어와 saving이 아직 true가 아니므로 같은 메모가 여러 벌 저장된다
+  const savingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -38,7 +41,8 @@ export function MemoPage() {
 
   async function handleSaveNote() {
     const content = text.trim()
-    if (!content) return
+    if (savingRef.current || !content) return
+    savingRef.current = true
     setSaving(true)
     setError(null)
     try {
@@ -48,6 +52,7 @@ export function MemoPage() {
     } catch (e) {
       setError(errorMessage(e))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -75,6 +80,24 @@ export function MemoPage() {
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // 링크(<a href>)로 직접 받으면 401이 apiFetch를 거치지 않아, 세션이 끊긴 뒤
+  // 클릭해도 아무 일 없이 조용히 실패한다. 내려받은 뒤 blob으로 저장한다.
+  async function handleDownload(f: StoredFileDto) {
+    setError(null)
+    try {
+      const blob = await memoApi.downloadFile(f.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = f.filename
+      a.click()
+      // 즉시 해제하면 브라우저가 아직 읽기 전이라 저장이 취소될 수 있다
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch (e) {
+      setError(errorMessage(e))
     }
   }
 
@@ -139,9 +162,9 @@ export function MemoPage() {
           <ul className="memo-list">
             {files.map((f) => (
               <li key={f.id} className="memo-item file-item">
-                <a className="file-name" href={memoApi.fileDownloadUrl(f.id)} download={f.filename}>
+                <button className="file-name" onClick={() => handleDownload(f)}>
                   <Download size={15} /> {f.filename}
-                </a>
+                </button>
                 <div className="memo-item-meta">
                   <span>
                     {formatBytes(f.size)} · {formatTime(f.createdAt)}

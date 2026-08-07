@@ -124,7 +124,17 @@ export function Column({ column, visibleCards, onCardClick, onCardAdded }: Colum
           </h2>
         )}
         <span className="column-count">{visibleCards.length}</span>
-        <div className="column-menu" ref={menuRef} {...stopDndSensorEvents} onKeyDown={stopEvent}>
+        {/* onKeyDown이 키를 밖으로 내보내지 않으므로 Esc도 여기서 처리해야 한다 —
+            다른 팝오버(BoardSwitcher·LabelPicker)와 같은 규약을 맞춘다 */}
+        <div
+          className="column-menu"
+          ref={menuRef}
+          {...stopDndSensorEvents}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !e.nativeEvent.isComposing && menuOpen) setMenuOpen(false)
+            stopEvent(e)
+          }}
+        >
           <button className="btn btn-icon" aria-label="컬럼 메뉴" onClick={() => setMenuOpen((v) => !v)}>
             <MoreHorizontal size={18} />
           </button>
