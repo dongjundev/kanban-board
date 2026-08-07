@@ -1,3 +1,4 @@
+import { apiFetch } from './http'
 import type { Workspace } from './types'
 import { isValidWorkspace } from './storage'
 
@@ -16,7 +17,7 @@ export type FetchResult = RemoteWorkspace | 'empty' | 'offline'
 
 export async function fetchRemoteWorkspace(): Promise<FetchResult> {
   try {
-    const res = await fetch('/api/workspace', { headers: { Accept: 'application/json' } })
+    const res = await apiFetch('/api/workspace', { headers: { Accept: 'application/json' } })
     if (res.status === 404) return 'empty'
     if (!res.ok) return 'offline'
     const data: unknown = await res.json()
@@ -38,7 +39,7 @@ export async function fetchRemoteWorkspace(): Promise<FetchResult> {
 /** 폴링용 — 버전 번호만 조회. 실패 시 null. */
 export async function fetchRemoteVersion(): Promise<number | null> {
   try {
-    const res = await fetch('/api/workspace/version', { headers: { Accept: 'application/json' } })
+    const res = await apiFetch('/api/workspace/version', { headers: { Accept: 'application/json' } })
     if (!res.ok) return null
     const data: unknown = await res.json()
     const version = (data as { version?: unknown })?.version
@@ -62,7 +63,7 @@ export async function saveRemoteWorkspace(
   keepalive = false,
 ): Promise<SaveResult> {
   try {
-    const res = await fetch('/api/workspace', {
+    const res = await apiFetch('/api/workspace', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workspace, baseVersion }),

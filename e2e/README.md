@@ -33,12 +33,14 @@ node --experimental-default-type=module smoke.mjs   # 또는 그냥 node smoke.m
 | `smoke-ux2.mjs` | UX 개선 2차 (라벨 편집, 보드별 필터, 인앱 confirm 등) | 끔 |
 | `smoke-undo2.mjs` | 대상 지정 복원 undo, confirm 레이어링 | 끔 |
 | `smoke-diagram.mjs` | mermaid 렌더·테마 연동·글자 대비(확대/이동 후 유지) | 끔 |
+| `smoke-auth.mjs` | 로그인·세션 만료 감지·API 차단 | **켬**(APP_AUTH_PASSWORD=test-pw) |
 | `smoke-backend.mjs` | 서버 마이그레이션·복원·브라우저 간 동기화 | **켬** |
 | `smoke-backend2.mjs` | 동기화 강화 (재시도, 재조정, 409 충돌, 오프라인 승격) | **켬** |
 
 주의:
 
 - 각 스위트는 시작 시 `localStorage`를 초기화하므로 개발용 브라우저 데이터가 아닌 전용 dev 서버(5175)에서 돌리세요.
+- `smoke-auth.mjs`는 인증을 켠 백엔드를 전제로 합니다: `cd backend && APP_AUTH_PASSWORD=test-pw ./gradlew bootRun`. 다른 스위트와 함께 돌리지 말고 단독 실행하세요(인증이 켜져 있으면 나머지가 401로 깨집니다).
 - 백엔드 스위트 2개는 **빈 서버 DB**를 전제로 정확 개수 검증을 합니다. 실행 전:
   `백엔드 정지 → docker compose down -v && docker compose up -d(backend/에서, DB 초기화) → 백엔드 기동` 후 두 스위트를 순서대로 1회씩 실행.
 - 나머지 10개는 백엔드가 꺼져 있어야 합니다(켜져 있으면 서버 데이터가 localStorage 시나리오를 오염).

@@ -26,6 +26,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # E2E (e2e/ — 프레임워크 없는 단독 실행형 Playwright 스크립트, node smoke*.mjs)
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
+#  - smoke-auth.mjs: 인증 켠 백엔드 단독 (APP_AUTH_PASSWORD=test-pw ./gradlew bootRun)
 #  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
@@ -78,6 +79,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - 차단은 반드시 서버(`AuthFilter`)에서 한다. 프론트 화면만 잠그면 `/api/notes` 직접 호출로 데이터가 그대로 나간다.
 - `GET /api/auth/me`는 401이 아니라 **항상 200 + `{required, authenticated}`**. 백엔드 없음(정적 호스팅 404·네트워크 실패)과 "로그인 필요"를 프론트가 구분해야 localStorage 단독 모드가 로그인 화면에 갇히지 않는다. 이 조회에는 타임아웃이 걸려 있다 — 응답을 기다리는 동안 화면이 비기 때문.
 - `AuthGate`는 `BoardProvider` **바깥**에 둔다. 안쪽에 두면 로그인 화면 뒤에서 워크스페이스를 불러오고 4초 폴링이 돈다.
+- **데이터 API는 반드시 `http.ts`의 `apiFetch`를 거친다.** 401을 평범한 실패로 흘리면 앱이 "백엔드 없음"과 구분하지 못해 조용히 localStorage 모드로 동작한다 — 세션이 끊긴 뒤(재배포·만료) 사용자는 저장된 줄 알지만 서버·다른 기기에는 반영되지 않는다. `apiFetch`가 401에 `kanban:unauthorized`를 쏘면 `AuthGate`가 로그인 화면으로 되돌리고, 재로그인 시 재조정이 미전송 변경을 밀어올린다. `/api/auth/*`는 401이 정상 응답이므로 이 래퍼를 쓰지 않는다.
 
 ## 저장소 관례
 

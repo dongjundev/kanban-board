@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { LogIn } from 'lucide-react'
 import type { AuthState } from '../authApi'
 import * as authApi from '../authApi'
+import { UNAUTHORIZED_EVENT } from '../http'
 
 interface AuthGateProps {
   /** onLogout은 로그인이 설정된 배포에서만 전달된다 — 아니면 로그아웃 버튼을 숨긴다. */
@@ -22,6 +23,17 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     authApi.fetchAuthState().then(setState)
+  }, [])
+
+  // 세션이 끊기면(재배포·만료) API가 401을 돌려준다. 그대로 두면 앱은 계속 떠 있고
+  // 변경은 localStorage에만 쌓여 서버·다른 기기와 어긋난다 — 즉시 로그인 화면으로 돌린다.
+  // 다시 로그인하면 BoardContext의 재조정이 미전송 변경을 서버로 밀어올린다.
+  useEffect(() => {
+    function onUnauthorized() {
+      setState((prev) => (prev?.authenticated === false ? prev : { required: true, authenticated: false, username: '' }))
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
