@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Moon, Sun } from 'lucide-react'
+import { LogOut, Moon, Sun } from 'lucide-react'
 import type { Filters } from './types'
 import { EMPTY_FILTERS } from './types'
 import { BoardProvider, useBoard } from './state/BoardContext'
@@ -13,6 +13,7 @@ import { MemoPage } from './components/MemoPage'
 import { MermaidPage } from './components/MermaidPage'
 import { ToastProvider, useToast } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import { AuthGate } from './components/AuthGate'
 
 type View = 'board' | 'memo' | 'mermaid'
 
@@ -27,7 +28,7 @@ function viewFromPath(): View {
   return 'board'
 }
 
-function AppInner() {
+function AppInner({ onLogout }: { onLogout: (() => void) | null }) {
   const { state, workspace } = useBoard()
   const { showToast } = useToast()
   // 테마 토글은 여기 한 곳에서만 호출 — useTheme은 Context가 아니라 로컬 state 훅이라
@@ -130,6 +131,11 @@ function AppInner() {
         >
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
+        {onLogout && (
+          <button className="btn btn-icon" aria-label="로그아웃" title="로그아웃" onClick={onLogout}>
+            <LogOut size={18} />
+          </button>
+        )}
       </nav>
       {view === 'board' ? (
         <>
@@ -156,13 +162,19 @@ function AppInner() {
 }
 
 export default function App() {
+  // AuthGate가 바깥에 있어야 로그인 전에 BoardProvider가 마운트되지 않는다 —
+  // 로그인 화면 뒤에서 워크스페이스를 불러오거나 4초 폴링을 돌리지 않게 하기 위함.
   return (
-    <BoardProvider>
-      <ToastProvider>
-        <ConfirmProvider>
-          <AppInner />
-        </ConfirmProvider>
-      </ToastProvider>
-    </BoardProvider>
+    <AuthGate>
+      {(onLogout) => (
+        <BoardProvider>
+          <ToastProvider>
+            <ConfirmProvider>
+              <AppInner onLogout={onLogout} />
+            </ConfirmProvider>
+          </ToastProvider>
+        </BoardProvider>
+      )}
+    </AuthGate>
   )
 }

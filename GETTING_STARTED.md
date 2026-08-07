@@ -101,8 +101,11 @@ curl -fsSL https://get.docker.com | sh
 
 ```bash
 cp .env.example .env
-# .env 를 열어 POSTGRES_PASSWORD 를 강한 값으로 수정 (이 파일은 커밋 금지 — .gitignore 포함됨)
+# .env 를 열어 POSTGRES_PASSWORD 와 APP_AUTH_PASSWORD 를 강한 값으로 수정
+# (이 파일은 커밋 금지 — .gitignore 포함됨. 이 저장소는 공개이므로 특히 주의)
 ```
+
+`APP_AUTH_PASSWORD`가 비어 있으면 compose가 **기동을 거부**합니다 — 인증 없이 공개 배포되는 사고를 막기 위한 것입니다. 로그인은 서버 세션(HttpOnly 쿠키)으로 동작하며 `/api/**` 전체가 보호됩니다.
 
 **3) 실행**:
 

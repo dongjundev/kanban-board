@@ -71,6 +71,14 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - `length`를 빼면 `varchar(32600)`이 되어, 데이터가 32,600자를 넘는 순간부터 **모든 저장이 500으로 실패**한다(보드가 쌓인 워크스페이스, 긴 메모, 큰 다이어그램에서 실제로 도달하는 크기). 새 엔티티를 추가할 때 특히 조심.
 - `ddl-auto=update`는 **기존 컬럼 타입을 바꾸지 않는다** — 매핑을 고쳐도 이미 배포된 DB는 `ALTER TABLE ... TYPE text`를 수동 실행해야 한다.
 
+### 로그인 (선택 — 환경변수로 켜짐)
+
+`app.auth.password`(env `APP_AUTH_PASSWORD`)가 **비어 있으면 인증 자체가 꺼진다** — 로컬 개발과 E2E 스위트가 환경변수 없이 그대로 돌아가게 하려는 의도적 설계다. 운영은 `docker-compose.prod.yml`이 `:?` 가드로 값을 강제해 "깜빡 잊고 공개 배포"를 막는다. 저장소가 공개이므로 실제 비밀번호는 `.env`에만 둔다.
+
+- 차단은 반드시 서버(`AuthFilter`)에서 한다. 프론트 화면만 잠그면 `/api/notes` 직접 호출로 데이터가 그대로 나간다.
+- `GET /api/auth/me`는 401이 아니라 **항상 200 + `{required, authenticated}`**. 백엔드 없음(정적 호스팅 404·네트워크 실패)과 "로그인 필요"를 프론트가 구분해야 localStorage 단독 모드가 로그인 화면에 갇히지 않는다. 이 조회에는 타임아웃이 걸려 있다 — 응답을 기다리는 동안 화면이 비기 때문.
+- `AuthGate`는 `BoardProvider` **바깥**에 둔다. 안쪽에 두면 로그인 화면 뒤에서 워크스페이스를 불러오고 4초 폴링이 돈다.
+
 ## 저장소 관례
 
 - 커밋 메시지는 한국어, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` 트레일러 사용.

@@ -1469,3 +1469,67 @@ span.app-tab {
   color: var(--text-subtle);
   font-size: 11px;
 }
+
+/* ── 로그인 화면 ── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--background);
+}
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  padding: 28px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+}
+.login-title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+.login-subtitle {
+  margin: -8px 0 4px;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.login-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+.login-input {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+}
+.login-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.login-error {
+  padding: 8px 10px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.login-submit {
+  justify-content: center;
+  margin-top: 4px;
+}
