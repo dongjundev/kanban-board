@@ -104,6 +104,15 @@ for (const theme of ['dark', 'light']) {
   check(`[${theme}] 휠 줌·드래그 후에도 대비 유지`, afterPan.ratio >= 4.5, `최저 ${afterPan.ratio.toFixed(2)}:1 "${afterPan.text}"`)
 }
 
+// 확대 상한 (MAX_SCALE) — 조작으로 상한까지 올라가고 그 이상은 멈춘다
+await page.goto(`${BASE}/diagram`)
+await page.waitForSelector('.mermaid-svg svg', { timeout: 30000 })
+for (let i = 0; i < 24; i++) await page.getByRole('button', { name: '확대' }).click()
+const maxPct = await page.locator('.mermaid-zoom-level').innerText()
+check('확대 상한 3000%', maxPct === '3000%', maxPct)
+await page.getByRole('button', { name: '원래 크기' }).click()
+check('원래 크기 복원', (await page.locator('.mermaid-zoom-level').innerText()) === '100%')
+
 // 테마를 토글하면 미리보기도 즉시 다시 그려진다
 await page.goto(`${BASE}/diagram`)
 await page.evaluate(() => localStorage.setItem('kanban-board-theme', 'light'))

@@ -46,6 +46,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
 - 미러 저장은 leading(첫 변경 즉시) + trailing(400ms) — 드래그 중 매 dispatch 직렬화 방지. 테스트에서 localStorage를 clear한 직후 reload하면 대기 중이던 trailing 쓰기가 키를 되살릴 수 있으니 600ms 정착 대기.
 - 백엔드 감지는 `/api/workspace/version`(항상 200 JSON)으로 — `/api/workspace`의 404는 정적 호스팅 폴백과 구분 불가.
+- **`/api/**` 응답은 `NoCacheFilter`가 `Cache-Control: no-store`를 붙인다.** 캐시 지시자가 없으면 중간 캐시가 응답을 임의로 재사용해도 규격 위반이 아니다 — 평문 HTTP에서는 경로상의 프록시가 그대로 캐시해, 한 PC의 변경이 다른 PC의 새로고침에 간헐적으로 안 보이는 형태로 나타난다(네트워크마다 달라 재현이 어렵다).
+- 폴링은 `document.hidden`이면 건너뛴다(배터리). 대신 **다시 보일 때 즉시 한 번 확인**한다 — 없으면 탭을 되돌아왔을 때 최대 폴링 주기만큼 늦게 반영된다.
 
 ### 실행 취소: 대상 지정 복원 (스냅샷 교체 아님)
 

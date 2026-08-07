@@ -188,13 +188,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   // 탭이 가려질 때(전환/최소화) 미리 플러시 — 페이지가 살아있어 일반 fetch 가능
   useEffect(() => {
     function onVisibilityChange() {
-      if (document.hidden && dirty.current) {
+      if (document.hidden) {
+        if (!dirty.current) return
         if (saveTimer.current) {
           clearTimeout(saveTimer.current)
           saveTimer.current = null
         }
         void flushRemote()
+        return
       }
+      // 다시 보일 때 즉시 한 번 확인 — 폴링은 숨김 동안 멈춰 있으므로(배터리),
+      // 이게 없으면 다른 기기의 변경이 최대 폴링 주기만큼 늦게 보인다.
+      if (!serverMode.current || dirty.current) return
+      void (async () => {
+        const version = await fetchRemoteVersion()
+        if (version === null || version === lastVersion.current || dirty.current) return
+        await pullRemote(false)
+      })()
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)

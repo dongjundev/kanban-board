@@ -156,7 +156,7 @@ function bakeInk(markup: string): string {
 }
 
 const MIN_SCALE = 0.2
-const MAX_SCALE = 20
+const MAX_SCALE = 30
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
 
 function clampScale(s: number): number {
