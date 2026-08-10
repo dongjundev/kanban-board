@@ -130,7 +130,7 @@ export function MemoPage() {
               }}
             />
             <button className="btn btn-primary" onClick={handleSaveNote} disabled={saving || !text.trim()}>
-              저장
+              {saving ? '저장 중…' : '저장'}
             </button>
           </div>
           <ul className="memo-list">

@@ -3,7 +3,7 @@
  * 실패 시 에러를 던지고, 호출부(MemoPage)가 사용자에게 메시지를 표시한다.
  */
 
-import { apiFetch } from './http'
+import { apiFetch, apiFetchNoTimeout } from './http'
 
 export interface NoteDto {
   id: number
@@ -49,7 +49,7 @@ export async function listFiles(): Promise<StoredFileDto[]> {
 export async function uploadFile(file: File): Promise<StoredFileDto> {
   const form = new FormData()
   form.append('file', file)
-  const res = await apiFetch('/api/files', { method: 'POST', body: form })
+  const res = await apiFetchNoTimeout('/api/files', { method: 'POST', body: form })
   if (!res.ok) throw new Error('파일 업로드에 실패했습니다')
   return res.json()
 }
@@ -65,7 +65,7 @@ export function fileDownloadUrl(id: number): string {
 
 /** apiFetch 경유 — 세션이 끊겼을 때 401이 감지되어 로그인 화면으로 돌아간다. */
 export async function downloadFile(id: number): Promise<Blob> {
-  const res = await apiFetch(fileDownloadUrl(id))
+  const res = await apiFetchNoTimeout(fileDownloadUrl(id))
   if (!res.ok) throw new Error('파일을 내려받지 못했습니다')
   return res.blob()
 }

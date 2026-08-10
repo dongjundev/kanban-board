@@ -68,6 +68,10 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - 팝오버는 Esc로 닫혀야 한다. `onKeyDown`으로 키를 밖으로 내보내지 않는 팝오버(컬럼 ⋯ 메뉴)는 **자기 자신이 Esc를 처리**해야 한다.
 - CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
 
+### 프로덕션 nginx
+
+`front/nginx.conf`가 `/api`를 백엔드로 프록시한다. **`client_max_body_size`를 지정하지 않으면 nginx 기본값 1MB가 적용되어, 백엔드가 50MB를 허용해도 1MB 넘는 업로드가 백엔드에 닿기 전에 413으로 막힌다.** 개발 서버(Vite 프록시)에는 이 제한이 없어 로컬에서는 재현되지 않는다 — 업로드 한도를 바꾸면 `application.properties`와 nginx 양쪽을 함께 고쳐야 한다.
+
 ### 백엔드 (문서형 API)
 
 단일 행(id=1) 문서 저장. version 0 시드 행 = "문서 없음"(GET 404). PUT은 `findForUpdate`(PESSIMISTIC_WRITE)로 version 증가를 직렬화 — 평범한 read-modify-write는 동시 저장에서 version이 유실/역행해 폴링이 변경을 영영 못 본다. GET은 payload 문자열을 재파싱 없이 그대로 이어붙여 응답한다. 깊은 검증은 프론트(`parseWorkspace`)의 책임.
@@ -86,6 +90,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - 차단은 반드시 서버(`AuthFilter`)에서 한다. 프론트 화면만 잠그면 `/api/notes` 직접 호출로 데이터가 그대로 나간다.
 - `GET /api/auth/me`는 401이 아니라 **항상 200 + `{required, authenticated}`**. 백엔드 없음(정적 호스팅 404·네트워크 실패)과 "로그인 필요"를 프론트가 구분해야 localStorage 단독 모드가 로그인 화면에 갇히지 않는다. 이 조회에는 타임아웃이 걸려 있다 — 응답을 기다리는 동안 화면이 비기 때문.
 - `AuthGate`는 `BoardProvider` **바깥**에 둔다. 안쪽에 두면 로그인 화면 뒤에서 워크스페이스를 불러오고 4초 폴링이 돈다.
+- **`apiFetch`에는 기본 20초 타임아웃이 있다.** 없으면 연결이 멎었을 때 OS의 TCP 타임아웃(수 분)까지 버튼이 비활성인 채 아무 안내도 없어 "저장이 오래 걸린다"로 보인다. 파일 업로드·다운로드는 크기에 따라 더 걸릴 수 있어 `apiFetchNoTimeout`으로 제한을 끈다. 타임아웃을 너무 짧게 잡으면 서버는 저장했는데 클라이언트만 실패로 보고, 재시도로 같은 것이 두 벌 저장될 수 있다.
 - **데이터 API는 반드시 `http.ts`의 `apiFetch`를 거친다.** 401을 평범한 실패로 흘리면 앱이 "백엔드 없음"과 구분하지 못해 조용히 localStorage 모드로 동작한다 — 세션이 끊긴 뒤(재배포·만료) 사용자는 저장된 줄 알지만 서버·다른 기기에는 반영되지 않는다. `apiFetch`가 401에 `kanban:unauthorized`를 쏘면 `AuthGate`가 로그인 화면으로 되돌리고, 재로그인 시 재조정이 미전송 변경을 밀어올린다. `/api/auth/*`는 401이 정상 응답이므로 이 래퍼를 쓰지 않는다.
 
 ## 저장소 관례
