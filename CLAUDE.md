@@ -73,6 +73,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 `front/nginx.conf`가 `/api`를 백엔드로 프록시한다. **`client_max_body_size`를 지정하지 않으면 nginx 기본값 1MB가 적용되어, 백엔드가 50MB를 허용해도 1MB 넘는 업로드가 백엔드에 닿기 전에 413으로 막힌다.** 개발 서버(Vite 프록시)에는 이 제한이 없어 로컬에서는 재현되지 않는다 — 업로드 한도를 바꾸면 `application.properties`와 nginx 양쪽을 함께 고쳐야 한다.
 
+정적 캐시 헤더도 지우면 안 된다: **index.html은 `no-cache`, 해시 파일명인 `/assets/`는 장기 `immutable`.** 헤더가 없으면 브라우저 휴리스틱 캐시가 이전 index.html을 계속 써서, 재배포가 캐시 만료 시점까지 반영되지 않은 것처럼 보인다(실제 발생 — "배포했는데 변화가 없다"로 나타난다).
+
 ### 백엔드 (문서형 API)
 
 단일 행(id=1) 문서 저장. version 0 시드 행 = "문서 없음"(GET 404). PUT은 `findForUpdate`(PESSIMISTIC_WRITE)로 version 증가를 직렬화 — 평범한 read-modify-write는 동시 저장에서 version이 유실/역행해 폴링이 변경을 영영 못 본다. GET은 payload 문자열을 재파싱 없이 그대로 이어붙여 응답한다. 깊은 검증은 프론트(`parseWorkspace`)의 책임.
