@@ -17,22 +17,17 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : '오류가 발생했습니다'
 }
 
-/** 서버 반영 전에 목록에 먼저 보여주는 항목은 pending으로 구분한다. */
-type LocalNote = NoteDto & { pending?: boolean }
-
 /** 텍스트 메모 + 파일 업로드 페이지 (서버 저장). */
 export function MemoPage() {
-  const [notes, setNotes] = useState<LocalNote[]>([])
+  const [notes, setNotes] = useState<NoteDto[]>([])
   const [files, setFiles] = useState<StoredFileDto[]>([])
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  // 제출은 이 ref를 동기적으로 읽고 비운다 — ⌘/Ctrl+Enter 연타(키 자동반복 포함)는
-  // 리렌더 전의 낡은 state를 보고 같은 내용을 거듭 저장하므로, state가 아니라
-  // 즉시 비워지는 ref가 중복을 막는다.
-  const textRef = useRef('')
-  // 임시 항목 id — 서버 id(양수)와 절대 겹치지 않게 음수를 쓴다
-  const tempIdRef = useRef(-1)
+  // 저장 중복 방지는 state가 아니라 ref로 — ⌘/Ctrl+Enter 연타(키 자동반복 포함)는
+  // 리렌더 사이에 연달아 들어와 saving이 아직 true가 아니므로 같은 메모가 여러 벌 저장된다
+  const savingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -44,35 +39,21 @@ export function MemoPage() {
       .catch((e) => setError(errorMessage(e)))
   }, [])
 
-  function handleTextChange(value: string) {
-    textRef.current = value
-    setText(value)
-  }
-
-  // 낙관적 저장 — 서버 응답을 기다리지 않고 즉시 목록에 반영하고 입력칸을 비운다.
-  // 배포 VM의 응답이 수십 ms~수 초까지 흔들려서(디스크/CPU 버스트 + 사내망 경유),
-  // 왕복을 기다리게 하면 긴 텍스트를 붙여넣을 때마다 멈춘 것처럼 느껴진다.
-  // 실패하면 임시 항목을 걷어내고 내용을 입력칸에 되돌린다(유실 없음).
   async function handleSaveNote() {
-    const content = textRef.current.trim()
-    if (!content) return
-    textRef.current = ''
-    setText('')
+    const content = text.trim()
+    if (savingRef.current || !content) return
+    savingRef.current = true
+    setSaving(true)
     setError(null)
-    const tempId = tempIdRef.current--
-    const temp: LocalNote = { id: tempId, content, createdAt: new Date().toISOString(), pending: true }
-    setNotes((prev) => [temp, ...prev])
     try {
-      const saved = await memoApi.createNote(content)
-      setNotes((prev) => prev.map((n) => (n.id === tempId ? saved : n)))
+      const note = await memoApi.createNote(content)
+      setNotes((prev) => [note, ...prev])
+      setText('')
     } catch (e) {
-      setNotes((prev) => prev.filter((n) => n.id !== tempId))
-      // 실패 사이에 새로 입력한 내용이 있으면 덮지 않고 위에 얹는다 — 어느 쪽도 잃지 않게
-      const typedMeanwhile = textRef.current
-      const restored = typedMeanwhile ? `${content}\n\n${typedMeanwhile}` : content
-      textRef.current = restored
-      setText(restored)
-      setError(`${errorMessage(e)} — 작성한 내용을 입력칸에 되돌렸습니다`)
+      setError(errorMessage(e))
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
   }
 
@@ -141,29 +122,26 @@ export function MemoPage() {
             <textarea
               className="memo-textarea"
               value={text}
-              onChange={(e) => handleTextChange(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               placeholder="메모를 입력하세요… (Ctrl/⌘+Enter로 저장)"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSaveNote()
               }}
             />
-            <button className="btn btn-primary" onClick={handleSaveNote} disabled={!text.trim()}>
-              저장
+            <button className="btn btn-primary" onClick={handleSaveNote} disabled={saving || !text.trim()}>
+              {saving ? '저장 중…' : '저장'}
             </button>
           </div>
           <ul className="memo-list">
             {notes.map((n) => (
-              <li key={n.id} className={`memo-item${n.pending ? ' pending' : ''}`}>
+              <li key={n.id} className="memo-item">
                 <div className="memo-item-body">{n.content}</div>
                 <div className="memo-item-meta">
-                  <span>{n.pending ? '저장 중…' : formatTime(n.createdAt)}</span>
-                  {/* 서버 id가 나오기 전에는 지울 수 없으므로 pending 동안 삭제 버튼을 감춘다 */}
-                  {!n.pending && (
-                    <button className="memo-icon-btn" aria-label="메모 삭제" onClick={() => handleDeleteNote(n.id)}>
-                      <Trash2 size={15} />
-                    </button>
-                  )}
+                  <span>{formatTime(n.createdAt)}</span>
+                  <button className="memo-icon-btn" aria-label="메모 삭제" onClick={() => handleDeleteNote(n.id)}>
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </li>
             ))}
