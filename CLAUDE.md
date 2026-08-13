@@ -73,7 +73,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 `front/nginx.conf`가 `/api`를 백엔드로 프록시한다. **`client_max_body_size`를 지정하지 않으면 nginx 기본값 1MB가 적용되어, 백엔드가 50MB를 허용해도 1MB 넘는 업로드가 백엔드에 닿기 전에 413으로 막힌다.** 개발 서버(Vite 프록시)에는 이 제한이 없어 로컬에서는 재현되지 않는다 — 업로드 한도를 바꾸면 `application.properties`와 nginx 양쪽을 함께 고쳐야 한다.
 
-정적 캐시 헤더도 지우면 안 된다: **index.html은 `no-cache`, 해시 파일명인 `/assets/`는 장기 `immutable`.** 헤더가 없으면 브라우저 휴리스틱 캐시가 이전 index.html을 계속 써서, 재배포가 캐시 만료 시점까지 반영되지 않은 것처럼 보인다(실제 발생 — "배포했는데 변화가 없다"로 나타난다).
+정적 캐시 헤더도 지우면 안 된다: **index.html은 `no-cache`, 해시 파일명인 `/assets/`는 장기 `immutable`.** 헤더가 없으면 브라우저 휴리스틱 캐시가 이전 index.html을 계속 써서, 재배포가 캐시 만료 시점까지 반영되지 않은 것처럼 보인다(실제 발생 — "배포했는데 변화가 없다"로 나타난다). **gzip도 명시적으로 켜둔 것이다** — 공식 nginx 이미지 기본값은 꺼짐이라, 설정을 지우면 mermaid 코어 663KB·elkjs 1.4MB 같은 청크가 무압축으로 전송된다.
 
 ### 백엔드 (문서형 API)
 

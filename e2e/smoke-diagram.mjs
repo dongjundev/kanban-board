@@ -219,7 +219,10 @@ await renderWith(ELK_GRAPH)
 const dagrePos = await posOf()
 const elkWarnings = []
 page.on('console', (m) => {
-  if (/fall.?back|not (registered|found|supported)/i.test(m.text())) elkWarnings.push(m.text())
+  const t = m.text()
+  // 'not found'만 보면 무관한 리소스 404("404 (Not Found)")에도 걸려 오탐이 난다
+  // — 레이아웃 문맥(elk/layout/dagre)이 함께 있는 메시지만 폴백 경고로 취급
+  if (/elk|layout|dagre/i.test(t) && /fall.?back|not (registered|found|supported)/i.test(t)) elkWarnings.push(t)
 })
 await renderWith(`---\nconfig:\n  layout: elk\n---\n${ELK_GRAPH}`)
 check('ELK frontmatter 문법 오류 없음', (await page.locator('.mermaid-error').count()) === 0)
@@ -232,6 +235,29 @@ const movedNodes = Object.keys(dagrePos).filter((k) => {
   return Math.abs(ax - bx) > 5 || Math.abs(ay - by) > 5
 })
 check('ELK 레이아웃이 dagre와 다름', movedNodes.length > 0, `이동 노드 ${movedNodes.length}개`)
+
+// ELK 모듈 로드 실패 격리 — 등록용 import 실패가 mermaid 전체 실패로 승격되면
+// ELK와 무관한 차트까지 렌더 불능이 된다(과거 버그). 진입 모듈을 차단해도
+// 일반 차트는 렌더되고, ELK 지정 차트는 dagre 폴백으로 살아야 한다.
+{
+  const ctx2 = await browser.newContext()
+  await ctx2.route('**/@mermaid-js_layout-elk*', (r) => r.abort())
+  const p2 = await ctx2.newPage()
+  await p2.goto(`${BASE}/diagram`)
+  await p2.evaluate(() => localStorage.removeItem('kanban-mermaid-draft'))
+  await p2.reload()
+  await p2.waitForSelector('.mermaid-editor', { timeout: 30000 })
+  await p2.locator('.mermaid-editor').fill('graph TD\n  A[하나] --> B[둘]')
+  const alive = await p2
+    .waitForSelector('.mermaid-svg svg', { timeout: 15000 })
+    .then(() => true)
+    .catch(() => false)
+  check('ELK 모듈 로드 실패에도 일반 차트 렌더 생존', alive)
+  await p2.locator('.mermaid-editor').fill('---\nconfig:\n  layout: elk\n---\ngraph TD\n  A[하나] --> B[둘] --> C[셋]')
+  await p2.waitForTimeout(2000)
+  check('ELK 지정 차트는 dagre 폴백으로 렌더', (await p2.locator('.mermaid-svg svg').count()) === 1)
+  await ctx2.close()
+}
 
 await browser.close()
 console.log(failures === 0 ? '\n모든 검사 통과' : `\n실패 ${failures}건`)
