@@ -264,11 +264,21 @@ function errorMessage(e: unknown): string {
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
 function getMermaid() {
   if (!mermaidPromise) {
-    mermaidPromise = Promise.all([import('mermaid'), import('@mermaid-js/layout-elk')]).then(([m, elk]) => {
+    mermaidPromise = Promise.all([
+      import('mermaid'),
       // ELK 레이아웃 등록 — 다이어그램 frontmatter의 `layout: elk`로 개별 선택한다.
       // 등록은 로더만 달아 가볍고, 무거운 elkjs 본체는 ELK를 쓰는 차트를 처음 렌더할 때만 내려받는다.
-      m.default.registerLayoutLoaders(elk.default)
+      // 이 모듈 로드 실패를 mermaid 실패로 승격시키면 안 된다 — ELK와 무관한 차트까지
+      // 전부 렌더 불능이 된다. 실패 시 등록만 건너뛰어 해당 차트가 dagre로 폴백되게 한다.
+      import('@mermaid-js/layout-elk').catch(() => null),
+    ]).then(([m, elk]) => {
+      if (elk) m.default.registerLayoutLoaders(elk.default)
       return m.default
+    })
+    // 실패한 약속을 캐시에 남기면 순간적인 네트워크 오류 한 번에 새로고침 전까지
+    // 모든 렌더가 죽는다 — 비워서 다음 렌더 시도가 로드를 다시 하게 한다.
+    mermaidPromise.catch(() => {
+      mermaidPromise = null
     })
   }
   return mermaidPromise
@@ -406,6 +416,10 @@ export function MermaidPage({ theme }: MermaidPageProps) {
 
   useEffect(() => {
     const source = code.trim()
+    // 큰 문서일수록 디바운스를 늘린다 — 대형 차트(2만 자대)는 렌더 1회가 1초 안팎이고
+    // 그중 0.6~0.7초가 메인스레드 블로킹이라, 타이핑이 잠깐 멈출 때마다 렌더가 돌면
+    // 입력이 버벅인다. 소형 차트는 기존 300ms 그대로.
+    const delay = Math.min(1200, 300 + Math.floor(code.length / 30))
     const timer = setTimeout(() => {
       const seq = ++seqRef.current
       if (!source) {
@@ -420,6 +434,11 @@ export function MermaidPage({ theme }: MermaidPageProps) {
           mermaid.initialize({
             startOnLoad: false,
             suppressErrorRendering: true,
+            // 기본 한도(텍스트 5만 자·간선 500개)는 신뢰할 수 없는 입력용 방어값인데,
+            // 여기 입력은 사용자 자신의 편집기다. 실측 BSS 구성도가 이미 기본값의
+            // 절반 규모(2.2만 자·222간선)라, 차트가 더 자라면 렌더가 통째로 멈춘다.
+            maxTextSize: 200000,
+            maxEdges: 2000,
             theme: 'base',
             themeVariables: {
               fontFamily:
@@ -435,10 +454,18 @@ export function MermaidPage({ theme }: MermaidPageProps) {
         } catch (e) {
           if (seq !== seqRef.current) return
           // 직전 미리보기는 그대로 둔다 — 타이핑 중 불완전한 문법마다 화면이 비면 편집이 어렵다
-          setSyntaxError(e instanceof Error ? e.message : '다이어그램 문법 오류')
+          const msg = e instanceof Error ? e.message : '다이어그램 문법 오류'
+          // 모듈 로드 실패는 문법 오류가 아니다. Chromium은 실패한 import()를 모듈 맵에
+          // 캐시해 편집을 계속해도 재요청이 나가지 않으므로(실측), 새로고침 안내가
+          // 실질적인 복구 경로다 — 영어 원문을 그대로 두면 문법 오류로 오인한다.
+          setSyntaxError(
+            /dynamically imported module|Importing a module script failed/i.test(msg)
+              ? '차트 엔진을 불러오지 못했습니다(네트워크 오류) — 연결을 확인한 뒤 페이지를 새로고침하세요.'
+              : msg,
+          )
         }
       })()
-    }, 300)
+    }, delay)
     return () => clearTimeout(timer)
     // theme이 바뀌면 같은 코드라도 다시 그린다 — mermaid는 렌더 시점의 테마를 SVG에 구워 넣는다
   }, [code, theme])
