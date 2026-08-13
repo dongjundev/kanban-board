@@ -319,6 +319,8 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   const resizeStart = useRef({ x: 0, pct: 50, track: 0 })
   // 새로 그려진/불러온 차트는 전체 구조가 보이도록 화면 맞춤으로 시작
   const needsFitRef = useRef(true)
+  // 저장 차트 불러오기 직후 1회 — 클릭은 불연속 변경이라 타이핑용 디바운스를 건너뛴다
+  const skipDebounceRef = useRef(false)
   const [fullscreen, setFullscreen] = useState(false)
   const { confirm } = useConfirm()
 
@@ -419,7 +421,8 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     // 큰 문서일수록 디바운스를 늘린다 — 대형 차트(2만 자대)는 렌더 1회가 1초 안팎이고
     // 그중 0.6~0.7초가 메인스레드 블로킹이라, 타이핑이 잠깐 멈출 때마다 렌더가 돌면
     // 입력이 버벅인다. 소형 차트는 기존 300ms 그대로.
-    const delay = Math.min(1200, 300 + Math.floor(code.length / 30))
+    const delay = skipDebounceRef.current ? 0 : Math.min(1200, 300 + Math.floor(code.length / 30))
+    skipDebounceRef.current = false
     const timer = setTimeout(() => {
       const seq = ++seqRef.current
       if (!source) {
@@ -494,7 +497,16 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   function handleLoad(d: DiagramDto) {
     setCurrentId(d.id)
     setTitle(d.title)
-    setCode(d.code)
+    if (d.code !== code) {
+      setCode(d.code)
+      // 이전 차트를 새 차트가 그려질 때까지 계속 보여주면 클릭이 무시된 것처럼 보인다
+      // — 미리보기를 비워 '렌더링 중…'을 띄우고, 디바운스 없이 바로 그린다.
+      // (같은 코드면 code state가 그대로라 렌더 효과가 다시 돌지 않으므로 지우면 안 된다
+      //  — 지우는 순간 '렌더링 중…'에서 영영 멈춘다.)
+      setSvg('')
+      setSyntaxError(null)
+      skipDebounceRef.current = true
+    }
     needsFitRef.current = true // 다음 렌더에서 화면 맞춤 — 이전 차트의 시점을 물려받지 않게
   }
 
@@ -502,6 +514,8 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     setCurrentId(null)
     setTitle('')
     setCode('')
+    setSvg('') // 디바운스를 기다리지 않고 즉시 입력 안내로 전환
+    setSyntaxError(null)
     needsFitRef.current = true
   }
 
