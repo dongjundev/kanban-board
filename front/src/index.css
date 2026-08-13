@@ -1533,3 +1533,10 @@ span.app-tab {
   justify-content: center;
   margin-top: 4px;
 }
+/* 다이어그램 전체 화면 — 큰 차트의 구조 파악용. confirm/토스트보다 아래 층 */
+.mermaid-preview.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  border-radius: 0;
+}

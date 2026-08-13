@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FilePlus2, Maximize, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
+import { Expand, FilePlus2, Maximize, Minimize2, Scan, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
 import type { DiagramDto } from '../diagramApi'
 import * as diagramApi from '../diagramApi'
 import type { Theme } from '../hooks/useTheme'
@@ -149,13 +149,23 @@ function bakeInk(markup: string): string {
         el.style.fill = ink
       }
     }
+    // mermaid는 SVG를 width:100%로 내보내 큰 차트일수록 패널 폭에 맞춰 축소된다 —
+    // 글자가 잘게 뭉개지고 배율 표시(100%)도 거짓이 된다. viewBox의 실제 크기를
+    // width/height로 박아 배율 1 = 실제 크기(글자 원래 크기)가 되게 한다.
+    const svgEl = holder.querySelector('svg')
+    const viewBox = svgEl?.viewBox?.baseVal
+    if (svgEl && viewBox && viewBox.width > 0) {
+      svgEl.setAttribute('width', String(viewBox.width))
+      svgEl.setAttribute('height', String(viewBox.height))
+      svgEl.style.maxWidth = 'none'
+    }
     return holder.innerHTML
   } finally {
     holder.remove()
   }
 }
 
-const MIN_SCALE = 0.2
+const MIN_SCALE = 0.05
 const MAX_SCALE = 30
 const IDENTITY_VIEW = { scale: 1, x: 0, y: 0 }
 
@@ -236,7 +246,51 @@ export function MermaidPage({ theme }: MermaidPageProps) {
   const [resizing, setResizing] = useState(false)
   const pageRef = useRef<HTMLDivElement>(null)
   const resizeStart = useRef({ x: 0, pct: 50, track: 0 })
+  // 새로 그려진/불러온 차트는 전체 구조가 보이도록 화면 맞춤으로 시작
+  const needsFitRef = useRef(true)
+  const [fullscreen, setFullscreen] = useState(false)
   const { confirm } = useConfirm()
+
+  /** 차트 전체가 패널에 들어오는 배율로 (실제 크기 100%를 넘지는 않게). */
+  const fitToPane = useCallback(() => {
+    const viewport = viewportRef.current
+    const svgEl = viewport?.querySelector('.mermaid-svg svg')
+    if (!viewport || !svgEl) return
+    const w = Number(svgEl.getAttribute('width'))
+    const h = Number(svgEl.getAttribute('height'))
+    if (!w || !h) {
+      setView(IDENTITY_VIEW)
+      return
+    }
+    const pw = viewport.clientWidth - 16
+    const ph = viewport.clientHeight - 16
+    setView({ scale: clampScale(Math.min(pw / w, ph / h, 1)), x: 0, y: 0 })
+  }, [])
+
+  // 첫 렌더/불러오기 직후에만 화면 맞춤 — 편집 중 재렌더에는 시점을 유지한다
+  useEffect(() => {
+    if (!svg || !needsFitRef.current) return
+    needsFitRef.current = false
+    fitToPane()
+  }, [svg, fitToPane])
+
+  // 전체 화면 전환 시 새 크기에 맞춰 다시 맞춤 (명시적 조작이라 시점이 바뀌어도 자연스럽다)
+  useEffect(() => {
+    const id = requestAnimationFrame(fitToPane)
+    return () => cancelAnimationFrame(id)
+  }, [fullscreen, fitToPane])
+
+  // Esc로 전체 화면 종료 — confirm 레이어가 떠 있으면 양보(Esc 우선순위 규약)
+  useEffect(() => {
+    if (!fullscreen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || e.isComposing) return
+      if (document.querySelector('.confirm-backdrop')) return
+      setFullscreen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [fullscreen])
 
   /** (dx, dy)는 뷰포트 중심 기준 좌표 — 그 지점을 고정한 채 배율만 바꾼다. */
   const zoomAt = useCallback((factor: number, dx: number, dy: number) => {
@@ -353,14 +407,14 @@ export function MermaidPage({ theme }: MermaidPageProps) {
     setCurrentId(d.id)
     setTitle(d.title)
     setCode(d.code)
-    setView(IDENTITY_VIEW) // 확대해 둔 채로 다른 차트를 열면 화면 밖이 보인다
+    needsFitRef.current = true // 다음 렌더에서 화면 맞춤 — 이전 차트의 시점을 물려받지 않게
   }
 
   function handleNew() {
     setCurrentId(null)
     setTitle('')
     setCode('')
-    setView(IDENTITY_VIEW)
+    needsFitRef.current = true
   }
 
   function handleDragStart(e: React.PointerEvent<HTMLDivElement>) {
@@ -525,7 +579,7 @@ export function MermaidPage({ theme }: MermaidPageProps) {
         <h2 className="memo-title">미리보기</h2>
         <div
           ref={viewportRef}
-          className={`mermaid-preview${svg ? ' pannable' : ''}${dragging ? ' dragging' : ''}`}
+          className={`mermaid-preview${svg ? ' pannable' : ''}${dragging ? ' dragging' : ''}${fullscreen ? ' fullscreen' : ''}`}
           onPointerDown={svg ? handleDragStart : undefined}
           onPointerMove={handleDragMove}
           onPointerUp={handleDragEnd}
@@ -547,8 +601,19 @@ export function MermaidPage({ theme }: MermaidPageProps) {
                 <button className="btn btn-icon" aria-label="축소" onClick={() => zoomAt(1 / 1.25, 0, 0)}>
                   <ZoomOut size={16} />
                 </button>
-                <button className="btn btn-icon" aria-label="원래 크기" onClick={() => setView(IDENTITY_VIEW)}>
+                <button className="btn btn-icon" aria-label="화면 맞춤" title="화면 맞춤 — 전체 구조 보기" onClick={fitToPane}>
+                  <Scan size={16} />
+                </button>
+                <button className="btn btn-icon" aria-label="실제 크기" title="실제 크기(100%) — 글자 원래 크기" onClick={() => setView(IDENTITY_VIEW)}>
                   <Maximize size={16} />
+                </button>
+                <button
+                  className="btn btn-icon"
+                  aria-label={fullscreen ? '전체 화면 종료' : '전체 화면'}
+                  title={fullscreen ? '전체 화면 종료 (Esc)' : '전체 화면'}
+                  onClick={() => setFullscreen((f) => !f)}
+                >
+                  {fullscreen ? <Minimize2 size={16} /> : <Expand size={16} />}
                 </button>
                 <span className="mermaid-zoom-level">{Math.round(view.scale * 100)}%</span>
               </div>

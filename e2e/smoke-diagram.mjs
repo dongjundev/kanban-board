@@ -110,8 +110,40 @@ await page.waitForSelector('.mermaid-svg svg', { timeout: 30000 })
 for (let i = 0; i < 24; i++) await page.getByRole('button', { name: '확대' }).click()
 const maxPct = await page.locator('.mermaid-zoom-level').innerText()
 check('확대 상한 3000%', maxPct === '3000%', maxPct)
-await page.getByRole('button', { name: '원래 크기' }).click()
-check('원래 크기 복원', (await page.locator('.mermaid-zoom-level').innerText()) === '100%')
+await page.getByRole('button', { name: '실제 크기' }).click()
+check('실제 크기 복원', (await page.locator('.mermaid-zoom-level').innerText()) === '100%')
+
+// 큰 차트 시인성 — 화면 맞춤(구조 보기) ↔ 실제 크기(글자 읽기) ↔ 전체 화면
+const BIG = 'flowchart LR\n' + Array.from({ length: 30 }, (_, i) => `  N${i}[긴 이름의 처리 단계 ${i}] --> N${i + 1}[다음 단계 ${i + 1}]`).join('\n')
+await page.locator('.mermaid-editor').fill(BIG)
+await page.waitForTimeout(1200)
+await page.getByRole('button', { name: '화면 맞춤' }).click()
+const fitPct = parseInt(await page.locator('.mermaid-zoom-level').innerText())
+check('큰 차트 화면 맞춤 배율 < 100%', fitPct < 100, `${fitPct}%`)
+const svgBox = await page.locator('.mermaid-svg svg').boundingBox()
+const paneBox = await page.locator('.mermaid-preview').boundingBox()
+check('화면 맞춤 시 차트 전체가 패널 안에', svgBox.width <= paneBox.width + 4 && svgBox.height <= paneBox.height + 4)
+await page.getByRole('button', { name: '실제 크기' }).click()
+check('실제 크기 = 정직한 100%', (await page.locator('.mermaid-zoom-level').innerText()) === '100%')
+
+// 초안으로 저장된 큰 차트는 새로 열 때 자동 화면 맞춤으로 시작해야 한다
+await page.waitForTimeout(700) // 초안 디바운스(300ms) 정착
+await page.reload()
+await page.waitForSelector('.mermaid-svg svg', { timeout: 30000 })
+await page.waitForTimeout(400)
+const initialPct = parseInt(await page.locator('.mermaid-zoom-level').innerText())
+check('새로 열면 자동 화면 맞춤 (<100%)', initialPct < 100, `${initialPct}%`)
+
+// 전체 화면 — 미리보기가 화면 전체를 덮고 Esc로 나온다
+await page.getByRole('button', { name: '전체 화면' }).click()
+await page.waitForTimeout(300)
+const fsBox = await page.locator('.mermaid-preview').boundingBox()
+check('전체 화면이 뷰포트를 덮음', fsBox.width >= 1190 && fsBox.x <= 2, `${Math.round(fsBox.width)}px`)
+check('전체 화면 종료 버튼 표시', (await page.getByRole('button', { name: '전체 화면 종료' }).count()) === 1)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+const backBox = await page.locator('.mermaid-preview').boundingBox()
+check('Esc로 전체 화면 종료', backBox.width < 1000, `${Math.round(backBox.width)}px`)
 
 // 테마를 토글하면 미리보기도 즉시 다시 그려진다
 await page.goto(`${BASE}/diagram`)
