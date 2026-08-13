@@ -187,6 +187,52 @@ await page
   .then(() => check('테마 토글 시 미리보기 재렌더', true))
   .catch(() => check('테마 토글 시 미리보기 재렌더', false))
 
+// ELK 레이아웃 — frontmatter `layout: elk`로 다이어그램별 선택. 로더 등록이 깨져도
+// mermaid는 콘솔 경고만 남기고 dagre로 조용히 폴백해 화면상 오류가 없으므로,
+// "폴백 경고 부재 + 노드 위치가 dagre와 다름"으로 실제 적용을 확인한다.
+const ELK_GRAPH = `flowchart TD
+  A[요청] --> B{인증}
+  B -->|성공| C[핸들러]
+  B -->|실패| D[401 응답]
+  C --> E[(DB)]
+  E --> F[응답]
+  A -->|캐시 적중| F
+  F --> A`
+const posOf = () =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      [...document.querySelectorAll('.mermaid-svg .node')].map((n) => {
+        const r = n.getBoundingClientRect()
+        return [(n.textContent ?? '').trim(), [Math.round(r.x), Math.round(r.y)]]
+      }),
+    ),
+  )
+const renderWith = async (source) => {
+  const prev = await page.locator('.mermaid-svg svg').getAttribute('id')
+  await page.locator('.mermaid-editor').fill(source)
+  await page.waitForFunction((p) => document.querySelector('.mermaid-svg svg')?.getAttribute('id') !== p, prev, {
+    timeout: 30000, // 첫 ELK 렌더는 elkjs 청크 다운로드를 포함한다
+  })
+  await page.waitForTimeout(300)
+}
+await renderWith(ELK_GRAPH)
+const dagrePos = await posOf()
+const elkWarnings = []
+page.on('console', (m) => {
+  if (/fall.?back|not (registered|found|supported)/i.test(m.text())) elkWarnings.push(m.text())
+})
+await renderWith(`---\nconfig:\n  layout: elk\n---\n${ELK_GRAPH}`)
+check('ELK frontmatter 문법 오류 없음', (await page.locator('.mermaid-error').count()) === 0)
+const elkPos = await posOf()
+check('ELK 레이아웃 렌더', Object.keys(elkPos).length >= 6, `노드 ${Object.keys(elkPos).length}개`)
+check('ELK 적용 (dagre 폴백 경고 없음)', elkWarnings.length === 0, elkWarnings[0] ?? '')
+const movedNodes = Object.keys(dagrePos).filter((k) => {
+  const [ax, ay] = dagrePos[k]
+  const [bx, by] = elkPos[k] ?? [ax, ay]
+  return Math.abs(ax - bx) > 5 || Math.abs(ay - by) > 5
+})
+check('ELK 레이아웃이 dagre와 다름', movedNodes.length > 0, `이동 노드 ${movedNodes.length}개`)
+
 await browser.close()
 console.log(failures === 0 ? '\n모든 검사 통과' : `\n실패 ${failures}건`)
 process.exit(failures ? 1 : 0)
