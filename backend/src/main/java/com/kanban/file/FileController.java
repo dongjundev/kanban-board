@@ -92,7 +92,9 @@ public class FileController {
      * 새어 나가고, 바이트는 이미 디스크에 쓰인 뒤라 아무도 참조하지 않는 파일이 남는다.
      */
     private static String fit(String value) {
-        return value.length() <= 255 ? value : value.substring(0, 255);
+        // NUL은 PostgreSQL text에 저장 불가 — 제거 후 컬럼 길이에 맞춰 자른다
+        String cleaned = value.replace("\u0000", "");
+        return cleaned.length() <= 255 ? cleaned : cleaned.substring(0, 255);
     }
 
     public record FileResponse(Long id, String filename, String contentType, long size, String createdAt) {

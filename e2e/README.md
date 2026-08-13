@@ -36,6 +36,7 @@ node --experimental-default-type=module smoke.mjs   # 또는 그냥 node smoke.m
 | `smoke-auth.mjs` | 로그인·세션 만료 감지·API 차단 | **켬**(APP_AUTH_PASSWORD=test-pw) |
 | `smoke-backend.mjs` | 서버 마이그레이션·복원·브라우저 간 동기화 | **켬** |
 | `smoke-backend2.mjs` | 동기화 강화 (재시도, 재조정, 409 충돌, 오프라인 승격) | **켬** |
+| `smoke-syncrace.mjs` | 느린 PUT 중 연속 편집 유실(자기-409) 회귀 | **켬**(빈 DB 불필요) |
 
 주의:
 

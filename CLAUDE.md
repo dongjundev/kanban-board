@@ -41,6 +41,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 서버(PostgreSQL, version 번호) ↔ localStorage 미러(오프라인 폴백) ↔ 다른 탭(storage 이벤트). 이 코드는 여러 리뷰 사이클에서 실데이터 소실 버그를 잡으며 다듬어진 부분이라 수정 시 각별히 주의:
 
+- **서버 PUT은 직렬화 체인(`flushChain`)을 반드시 거친다.** PUT이 느린 동안(배포 VM 실측 0.1~1.4초) 다음 디바운스가 만료되면 두 PUT이 같은 baseVersion으로 동시에 나가고, 뒤엣것이 자기 자신과 409로 충돌해 방금 한 변경이 "다른 기기 충돌"로 둔갑해 되돌려진다(혼자 써도 유실 — smoke-syncrace.mjs가 회귀 방어).
 - **PUT은 `baseVersion` 선행조건** 포함 — 서버가 불일치 시 409, 클라이언트는 pull + 충돌 토스트(`window` CustomEvent `kanban:sync-conflict` → AppInner가 수신). 실패 시 dirty 복구 + 3초 재시도.
 - **에코 억제**(`skipNextPersist`: 'all' | 'remote'): 동기화로 받은 상태를 되저장하면 탭 간 무한 쓰기 루프가 생긴다 (두 탭의 activeBoardId가 달라 저장 문자열이 영원히 수렴하지 않음).
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
@@ -78,6 +79,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 **긴 문자열 컬럼(payload/content/code)은 `@JdbcTypeCode(LONGVARCHAR)` + `@Column(length = Length.LONG32)` 세트로만 쓸 것.** 둘 중 하나만 빠져도 조용히 망가진다:
 - `@Lob`을 쓰면 PostgreSQL에서 `oid`(Large Object)가 되어 `open-in-view=false`와 함께 GET이 깨진다.
+- **NUL(U+0000)은 PostgreSQL `text`에 저장할 수 없다** — 컨트롤러가 U+0000을 제거하지 않으면 삽입이 500으로 새어 나간다(Note·Diagram·File 컨트롤러에서 제거함. 워크스페이스 payload는 직렬화된 JSON 텍스트로 저장되어 NUL이 이스케이프 시퀀스로 남으므로 안전).
 - `length`를 빼면 `varchar(32600)`이 되어, 데이터가 32,600자를 넘는 순간부터 **모든 저장이 500으로 실패**한다(보드가 쌓인 워크스페이스, 긴 메모, 큰 다이어그램에서 실제로 도달하는 크기). 새 엔티티를 추가할 때 특히 조심.
 - `ddl-auto=update`는 **기존 컬럼 타입을 바꾸지 않는다** — 매핑을 고쳐도 이미 배포된 DB는 `ALTER TABLE ... TYPE text`를 수동 실행해야 한다.
 

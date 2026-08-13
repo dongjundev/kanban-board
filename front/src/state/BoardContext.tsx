@@ -40,6 +40,8 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   // 디바운스/재시도 대기 중인 미저장 상태
   const dirty = useRef<Workspace | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 서버 PUT 직렬화 체인 (flushRemote 주석 참조)
+  const flushChain = useRef<Promise<void>>(Promise.resolve())
   // 비동기 콜백에서 최신 상태를 읽기 위한 ref
   const latest = useRef(workspace)
   latest.current = workspace
@@ -65,7 +67,19 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     if (typeof remote === 'object') applyRemote(remote, notifyConflict)
   }
 
-  async function flushRemote(keepalive = false) {
+  /**
+   * 서버 저장은 반드시 직렬화한다. PUT이 느린 동안(배포 VM 실측 0.1~1.4초) 다음
+   * 디바운스가 만료되면 두 PUT이 같은 baseVersion으로 동시에 나가고, 뒤엣것이
+   * 자기 자신과 409로 충돌한다 — 방금 한 변경이 "다른 기기 충돌"로 둔갑해
+   * 되돌려진다(혼자 써도 유실). 줄을 세우면 앞 PUT이 갱신한 버전을 보고 이어간다.
+   */
+  function flushRemote(keepalive = false): Promise<void> {
+    const run = flushChain.current.then(() => doFlushRemote(keepalive))
+    flushChain.current = run.catch(() => {}) // 실패해도 체인이 끊기지 않게
+    return run
+  }
+
+  async function doFlushRemote(keepalive: boolean) {
     const pending = dirty.current
     if (!pending) return
     saveWorkspace(pending) // 디바운스로 미뤄둔 localStorage 미러 최신화
