@@ -27,6 +27,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
 #  - smoke-auth.mjs: 인증 켠 백엔드 단독 (APP_AUTH_PASSWORD=test-pw ./gradlew bootRun)
+#  - smoke-memo.mjs: 백엔드 켬, 빈 DB 불필요 (자기 메모만 만들고 지움)
 #  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
@@ -64,7 +65,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - `useClickOutside`는 캡처 단계 + confirm 레이어 내부 클릭 무시. composer들은 `'click'` 이벤트 모드 사용 — pointerdown에 닫으면 dnd 측정 전에 레이아웃이 변형되어 드래그 오버레이가 어긋난다.
 - 컬럼 헤더에 dnd `{...listeners}`가 스프레드되므로 내부 컨트롤은 `stopDndSensorEvents`(pointer/mouse/touch 3종)로 버블 차단 — 센서마다 듣는 이벤트가 다르다.
 - 모든 Enter/Esc 처리 입력에 `e.nativeEvent.isComposing` 가드 필수 (한글 IME — 조합 확정 Enter가 중복 제출됨).
-- **키보드로 제출되는 저장은 `saving` state가 아니라 ref로 중복을 막는다** — 연타(키 자동반복 포함)는 리렌더 사이에 연달아 들어와 state가 아직 true가 아니므로 같은 것이 여러 벌 저장된다. 버튼 `disabled`는 키보드 경로를 막지 못한다.
+- **키보드로 제출되는 저장은 state가 아니라 ref로 중복을 막는다** — 연타(키 자동반복 포함)는 리렌더 전의 낡은 state를 보므로 같은 것이 여러 벌 저장된다. 버튼 `disabled`는 키보드 경로를 막지 못한다. 두 가지 형태: 진행 플래그 ref(MermaidPage `savingRef`), 제출 시 동기적으로 비우는 내용 ref(MemoPage `textRef`).
+- **메모 저장은 낙관적(즉시 반영)** — 배포 VM 응답이 수십 ms~수 초까지 흔들려(B시리즈 버스트·디스크 fsync·사내망), 왕복을 기다리게 하면 멈춘 것처럼 보인다. 임시 항목(음수 id, `pending`)을 먼저 넣고 실패하면 걷어낸 뒤 내용을 입력칸에 되돌린다 — 그 사이 새로 입력한 내용을 덮지 않는다.
 - 팝오버는 Esc로 닫혀야 한다. `onKeyDown`으로 키를 밖으로 내보내지 않는 팝오버(컬럼 ⋯ 메뉴)는 **자기 자신이 Esc를 처리**해야 한다.
 - CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
 
