@@ -1540,3 +1540,13 @@ span.app-tab {
   z-index: 900;
   border-radius: 0;
 }
+/* '실제 크기(1:1)' 버튼 — 아이콘 크기(16px)와 시각적으로 맞춤 */
+.mermaid-zoom-one {
+  display: inline-block;
+  min-width: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}

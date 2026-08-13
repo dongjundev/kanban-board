@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Expand, FilePlus2, Maximize, Minimize2, Scan, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
+import { Expand, FilePlus2, Minimize2, Scan, Trash2, Workflow, ZoomIn, ZoomOut } from 'lucide-react'
 import type { DiagramDto } from '../diagramApi'
 import * as diagramApi from '../diagramApi'
 import type { Theme } from '../hooks/useTheme'
@@ -604,8 +604,9 @@ export function MermaidPage({ theme }: MermaidPageProps) {
                 <button className="btn btn-icon" aria-label="화면 맞춤" title="화면 맞춤 — 전체 구조 보기" onClick={fitToPane}>
                   <Scan size={16} />
                 </button>
+                {/* Scan(화면 맞춤)과 아이콘이 겹치지 않게 실제 크기는 1:1 텍스트로 표기 */}
                 <button className="btn btn-icon" aria-label="실제 크기" title="실제 크기(100%) — 글자 원래 크기" onClick={() => setView(IDENTITY_VIEW)}>
-                  <Maximize size={16} />
+                  <span className="mermaid-zoom-one">1:1</span>
                 </button>
                 <button
                   className="btn btn-icon"
