@@ -264,7 +264,12 @@ function errorMessage(e: unknown): string {
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
 function getMermaid() {
   if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then((m) => m.default)
+    mermaidPromise = Promise.all([import('mermaid'), import('@mermaid-js/layout-elk')]).then(([m, elk]) => {
+      // ELK 레이아웃 등록 — 다이어그램 frontmatter의 `layout: elk`로 개별 선택한다.
+      // 등록은 로더만 달아 가볍고, 무거운 elkjs 본체는 ELK를 쓰는 차트를 처음 렌더할 때만 내려받는다.
+      m.default.registerLayoutLoaders(elk.default)
+      return m.default
+    })
   }
   return mermaidPromise
 }

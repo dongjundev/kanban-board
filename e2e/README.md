@@ -32,7 +32,7 @@ node --experimental-default-type=module smoke.mjs   # 또는 그냥 node smoke.m
 | `smoke-ux.mjs` | UX 개선 1차 (undo 토스트, 필터 중 추가, 터치 드래그) | 끔 |
 | `smoke-ux2.mjs` | UX 개선 2차 (라벨 편집, 보드별 필터, 인앱 confirm 등) | 끔 |
 | `smoke-undo2.mjs` | 대상 지정 복원 undo, confirm 레이어링 | 끔 |
-| `smoke-diagram.mjs` | mermaid 렌더·테마 연동·글자 대비(확대/이동 후 유지) | 끔 |
+| `smoke-diagram.mjs` | mermaid 렌더·테마 연동·글자 대비(확대/이동 후 유지)·ELK 레이아웃 | 끔 |
 | `smoke-auth.mjs` | 로그인·세션 만료 감지·API 차단 | **켬**(APP_AUTH_PASSWORD=test-pw) |
 | `smoke-backend.mjs` | 서버 마이그레이션·복원·브라우저 간 동기화 | **켬** |
 | `smoke-backend2.mjs` | 동기화 강화 (재시도, 재조정, 409 충돌, 오프라인 승격) | **켬** |
