@@ -145,6 +145,34 @@ await page.waitForTimeout(300)
 const backBox = await page.locator('.mermaid-preview').boundingBox()
 check('Esc로 전체 화면 종료', backBox.width < 1000, `${Math.round(backBox.width)}px`)
 
+// 겹친 엣지 라벨 분리 — 양방향 엣지 쌍(A→B, B→A 각각 라벨)은 dagre가 라벨을
+// 같은 자리에 두어 상자가 포개진다(실제 BSS 구성도에서 재현된 패턴).
+const BIDIR = `graph TD
+  A[("Orchestrator DB<br/>SAGA 상태 / 보상 이력")] -->|"Outbox Table 폴링"| P(("Outbox Publisher<br/>커밋 후 즉시발행 + 폴링 백업"))
+  B[("Biz Domain1 DB<br/>업무 Table + Outbox Table")] -->|"Outbox Table 폴링"| P
+  C[("Biz Domain2 DB<br/>업무 Table + Outbox Table")] -->|"Outbox Table 폴링"| P
+  P -. "발행상태 갱신 / 재시도 / 중복방지" .-> A
+  P -. "발행상태 갱신 / 재시도 / 중복방지" .-> B
+  P -. "발행상태 갱신 / 재시도 / 중복방지" .-> C`
+await page.locator('.mermaid-editor').fill(BIDIR)
+await page.waitForTimeout(1200)
+await page.getByRole('button', { name: '실제 크기' }).click()
+await page.waitForTimeout(300)
+const labelOverlaps = await page.evaluate(() => {
+  const labels = [...document.querySelectorAll('.mermaid-svg g.edgeLabel')]
+    .map((el) => ({ t: (el.textContent ?? '').trim(), r: el.getBoundingClientRect() }))
+    .filter((l) => l.r.width > 3 && l.r.height > 3 && l.t)
+  let count = 0
+  for (let i = 0; i < labels.length; i++)
+    for (let j = i + 1; j < labels.length; j++) {
+      const a = labels[i].r, b = labels[j].r
+      if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+          Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) count++
+    }
+  return { total: labels.length, count }
+})
+check('양방향 엣지 라벨이 겹치지 않음', labelOverlaps.total === 6 && labelOverlaps.count === 0, `라벨 ${labelOverlaps.total}개, 겹침 ${labelOverlaps.count}쌍`)
+
 // 테마를 토글하면 미리보기도 즉시 다시 그려진다
 await page.goto(`${BASE}/diagram`)
 await page.evaluate(() => localStorage.setItem('kanban-board-theme', 'light'))

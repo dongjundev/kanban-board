@@ -121,6 +121,58 @@ function inkFor(fill: string): string | null {
 }
 
 /**
+ * 겹친 엣지 라벨 상자를 세로로 밀어 떼어놓는다.
+ *
+ * dagre는 라벨을 레이아웃에 반영하지만, 양방향 엣지 쌍(A→B와 B→A에 각각 라벨)이나
+ * 클러스터를 넘나드는 긴 엣지가 몰리는 구간에서는 상자가 겹친다(실제 BSS 구성도에서
+ * 155개 중 6쌍 재현 — 전부 양방향 쌍). 세로 이동은 위→아래 흐름의 엣지 선을 따라가는
+ * 방향이라 라벨 소속이 헷갈리지 않고, 이동 한도를 둬 원위치에서 크게 벗어나지 않는다.
+ */
+function separateEdgeLabels(holder: HTMLElement) {
+  type Box = { el: Element; left: number; right: number; top: number; bottom: number; dy: number }
+  const boxes: Box[] = []
+  for (const el of holder.querySelectorAll('g.edgeLabel')) {
+    if (!(el.textContent ?? '').trim()) continue
+    const r = el.getBoundingClientRect()
+    if (r.width < 4 || r.height < 4) continue
+    boxes.push({ el, left: r.left, right: r.right, top: r.top, bottom: r.bottom, dy: 0 })
+  }
+  const GAP = 4
+  const MAX_SHIFT = 120
+  for (let pass = 0; pass < 12; pass++) {
+    let moved = false
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i]
+        const b = boxes[j]
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+        if (ox <= 0 || oy <= 0) continue
+        const push = oy / 2 + GAP / 2
+        const [top, bottom] = a.top + a.bottom <= b.top + b.bottom ? [a, b] : [b, a]
+        if (Math.abs(top.dy - push) <= MAX_SHIFT) {
+          top.dy -= push
+          top.top -= push
+          top.bottom -= push
+          moved = true
+        }
+        if (Math.abs(bottom.dy + push) <= MAX_SHIFT) {
+          bottom.dy += push
+          bottom.top += push
+          bottom.bottom += push
+          moved = true
+        }
+      }
+    }
+    if (!moved) break
+  }
+  for (const b of boxes) {
+    if (Math.abs(b.dy) < 0.5) continue
+    b.el.setAttribute('transform', `translate(0, ${Math.round(b.dy)}) ${b.el.getAttribute('transform') ?? ''}`)
+  }
+}
+
+/**
  * 노드 글자색을 실제 칠해진 배경에 맞춰 SVG 문자열에 미리 구워 넣는다.
  *
  * 렌더된 뒤 DOM을 직접 고치는 방식은 쓸 수 없다 — 확대·이동으로 리렌더되면
@@ -136,6 +188,18 @@ function bakeInk(markup: string): string {
   holder.innerHTML = markup
   document.body.appendChild(holder)
   try {
+    // ① 실제 크기 정규화를 먼저 — 이후 라벨 좌표 측정이 화면 배율과 무관한 실제 단위가 된다.
+    // mermaid는 SVG를 width:100%로 내보내 큰 차트일수록 패널 폭에 맞춰 축소된다 —
+    // 글자가 잘게 뭉개지고 배율 표시(100%)도 거짓이 된다. viewBox의 실제 크기를
+    // width/height로 박아 배율 1 = 실제 크기(글자 원래 크기)가 되게 한다.
+    const svgEl = holder.querySelector('svg')
+    const viewBox = svgEl?.viewBox?.baseVal
+    if (svgEl && viewBox && viewBox.width > 0) {
+      svgEl.setAttribute('width', String(viewBox.width))
+      svgEl.setAttribute('height', String(viewBox.height))
+      svgEl.style.maxWidth = 'none'
+    }
+    // ② 노드 글자색 보정
     for (const node of holder.querySelectorAll('.node, .cluster')) {
       // label-container가 진짜 배경 도형이다. 없을 때만 첫 도형으로 넘어간다
       // (라벨 뒤에 깔리는 보조 rect를 배경으로 오인하지 않도록).
@@ -149,16 +213,8 @@ function bakeInk(markup: string): string {
         el.style.fill = ink
       }
     }
-    // mermaid는 SVG를 width:100%로 내보내 큰 차트일수록 패널 폭에 맞춰 축소된다 —
-    // 글자가 잘게 뭉개지고 배율 표시(100%)도 거짓이 된다. viewBox의 실제 크기를
-    // width/height로 박아 배율 1 = 실제 크기(글자 원래 크기)가 되게 한다.
-    const svgEl = holder.querySelector('svg')
-    const viewBox = svgEl?.viewBox?.baseVal
-    if (svgEl && viewBox && viewBox.width > 0) {
-      svgEl.setAttribute('width', String(viewBox.width))
-      svgEl.setAttribute('height', String(viewBox.height))
-      svgEl.style.maxWidth = 'none'
-    }
+    // ③ 겹친 엣지 라벨 분리
+    separateEdgeLabels(holder)
     return holder.innerHTML
   } finally {
     holder.remove()
