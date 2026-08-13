@@ -1533,3 +1533,7 @@ span.app-tab {
   justify-content: center;
   margin-top: 4px;
 }
+/* 서버 확인 전의 낙관적 메모 항목 */
+.memo-item.pending {
+  opacity: 0.55;
+}
