@@ -96,6 +96,17 @@ class MemoApiTests {
         assertThat(afterDelete.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void NUL_문자는_제거되어_저장된다() {
+        // NUL(U+0000)은 PostgreSQL text에 저장할 수 없다 — 거르지 않으면 500이 난다
+        HttpHeaders json = new HttpHeaders();
+        json.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> res = rest.postForEntity(
+                "/api/notes", new HttpEntity<>("{\"content\":\"앞\\u0000뒤\"}", json), String.class);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(res.getBody()).contains("앞뒤");
+    }
+
     /** JSON 응답에서 첫 번째 "id":N 값을 추출. */
     private long extractFirstId(String jsonBody) {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\":(\\d+)").matcher(jsonBody);

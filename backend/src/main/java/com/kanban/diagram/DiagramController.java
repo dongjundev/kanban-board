@@ -35,8 +35,8 @@ public class DiagramController {
             return ResponseEntity.badRequest().build();
         }
         Diagram diagram = new Diagram();
-        diagram.setTitle(request.title().trim());
-        diagram.setCode(request.code());
+        diagram.setTitle(clean(request.title()).trim());
+        diagram.setCode(clean(request.code()));
         repository.save(diagram);
         return ResponseEntity.status(HttpStatus.CREATED).body(DiagramResponse.from(diagram));
     }
@@ -49,8 +49,8 @@ public class DiagramController {
         return repository
                 .findById(id)
                 .map(diagram -> {
-                    diagram.setTitle(request.title().trim());
-                    diagram.setCode(request.code());
+                    diagram.setTitle(clean(request.title()).trim());
+                    diagram.setCode(clean(request.code()));
                     diagram.setUpdatedAt(Instant.now());
                     repository.save(diagram);
                     return ResponseEntity.ok(DiagramResponse.from(diagram));
@@ -65,6 +65,11 @@ public class DiagramController {
         }
         repository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** NUL(U+0000)은 PostgreSQL text에 저장할 수 없어 500이 된다 — 조용히 제거. */
+    private static String clean(String value) {
+        return value.replace("\u0000", "");
     }
 
     /** 제목 컬럼은 varchar(255) — 검증 없이 넘기면 DB 제약 위반이 500으로 새어 나간다. */

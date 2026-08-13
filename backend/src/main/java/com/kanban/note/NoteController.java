@@ -32,7 +32,8 @@ public class NoteController {
             return ResponseEntity.badRequest().build();
         }
         Note note = new Note();
-        note.setContent(request.content());
+        // NUL(U+0000)은 PostgreSQL text에 저장할 수 없어 500이 된다 — 조용히 제거
+        note.setContent(request.content().replace("\u0000", ""));
         repository.save(note);
         return ResponseEntity.status(HttpStatus.CREATED).body(NoteResponse.from(note));
     }
