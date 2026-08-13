@@ -259,6 +259,45 @@ check('ELK 레이아웃이 dagre와 다름', movedNodes.length > 0, `이동 노�
   await ctx2.close()
 }
 
+// 저장 차트 불러오기 피드백 — 이전 차트가 새 차트 렌더 완료까지 계속 보이면 클릭이
+// 무시된 것처럼 보인다. 불러오기는 미리보기를 비워 '렌더링 중…'을 띄우고 디바운스 없이
+// 그린다(타이핑 중 미리보기 유지와 구분). 같은 차트 재클릭은 code state가 그대로라
+// 렌더 효과가 다시 돌지 않으므로 지우면 안 된다(지우면 '렌더링 중…'에 영영 멈춘다).
+{
+  const ctx3 = await browser.newContext()
+  const big = ['graph TD']
+  for (let i = 0; i < 50; i++) big.push(`  S${i}["저장 노드 ${i}"] -->|"연결 ${i}"| S${(i * 13 + 5) % 50}`)
+  await ctx3.route('**/api/diagrams', (r) =>
+    r.fulfill({
+      json: [
+        { id: 1, title: '큰 차트', code: big.join('\n'), updatedAt: '2026-08-13T12:00:00Z' },
+        { id: 2, title: '작은 차트', code: 'graph TD\n  A[하나] --> B[둘]', updatedAt: '2026-08-13T11:00:00Z' },
+      ],
+    }),
+  )
+  const p3 = await ctx3.newPage()
+  await p3.goto(`${BASE}/diagram`)
+  await p3.evaluate(() => localStorage.removeItem('kanban-mermaid-draft'))
+  await p3.reload()
+  await p3.waitForSelector('.mermaid-svg svg', { timeout: 30000 })
+  // 렌더가 메인스레드를 점유하는 동안 외부 폴링은 못 끼어들므로 페이지 안 관찰자로 기록
+  await p3.evaluate(() => {
+    window.__sawLoading = false
+    new MutationObserver(() => {
+      const el = document.querySelector('.mermaid-preview .memo-empty')
+      if (el && (el.textContent ?? '').includes('렌더링 중') && !document.querySelector('.mermaid-svg'))
+        window.__sawLoading = true
+    }).observe(document.querySelector('.mermaid-preview'), { childList: true, subtree: true })
+  })
+  await p3.locator('.mermaid-saved-load', { hasText: '큰 차트' }).click()
+  await p3.waitForSelector('.mermaid-svg svg', { timeout: 30000 })
+  check("차트 불러오기 시 '렌더링 중…' 표시", await p3.evaluate(() => window.__sawLoading))
+  await p3.locator('.mermaid-saved-load', { hasText: '큰 차트' }).click()
+  await p3.waitForTimeout(800)
+  check('같은 차트 재클릭 시 미리보기 유지', (await p3.locator('.mermaid-svg svg').count()) === 1)
+  await ctx3.close()
+}
+
 await browser.close()
 console.log(failures === 0 ? '\n모든 검사 통과' : `\n실패 ${failures}건`)
 process.exit(failures ? 1 : 0)
