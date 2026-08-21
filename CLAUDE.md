@@ -69,7 +69,9 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - 팝오버는 Esc로 닫혀야 한다. `onKeyDown`으로 키를 밖으로 내보내지 않는 팝오버(컬럼 ⋯ 메뉴)는 **자기 자신이 Esc를 처리**해야 한다.
 - CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
 
-### 프로덕션 nginx
+### 프로덕션 nginx + HTTPS(Caddy)
+
+운영 요청 경로는 `caddy(TLS 종단, 루트 Caddyfile) → nginx(frontend) → backend`다. caddy는 `.env`의 `CADDY_DOMAIN`으로 Let's Encrypt 인증서를 자동 발급·갱신하는데, **HTTP-01 챌린지가 80 포트를 쓰므로 NSG에서 80을 닫으면 갱신이 조용히 실패한다**(만료 시점에야 드러남). caddy에는 요청 본문 크기 제한이 없어 업로드 한도는 여전히 nginx가 결정한다. nginx의 realip 설정(X-Forwarded-For 신뢰)은 접근 로그에 실제 클라이언트 IP를 남기기 위한 것 — 지우면 로그에 caddy 내부 IP만 찍혀 "어느 PC의 요청인지"를 추적하는 장애 분석이 불가능해진다(2026-08 저장 타임아웃 분석이 이 로그로 이뤄졌다).
 
 `front/nginx.conf`가 `/api`를 백엔드로 프록시한다. **`client_max_body_size`를 지정하지 않으면 nginx 기본값 1MB가 적용되어, 백엔드가 50MB를 허용해도 1MB 넘는 업로드가 백엔드에 닿기 전에 413으로 막힌다.** 개발 서버(Vite 프록시)에는 이 제한이 없어 로컬에서는 재현되지 않는다 — 업로드 한도를 바꾸면 `application.properties`와 nginx 양쪽을 함께 고쳐야 한다.
 
