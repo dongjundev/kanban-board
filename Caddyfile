@@ -1,0 +1,11 @@
+# HTTPS 종단 — Let's Encrypt 인증서를 자동 발급·갱신한다 (docker-compose.prod.yml의 caddy 서비스).
+# 도메인은 .env의 CADDY_DOMAIN으로 주입 — 저장소가 공개라 서버 주소를 코드에 남기지 않는다.
+{$CADDY_DOMAIN} {
+	reverse_proxy frontend:80
+}
+
+# 옛 주소(http://<공인IP>)로 온 접속을 새 주소로 안내한다. 인증서는 도메인에만
+# 발급되므로 IP로는 HTTPS를 제공할 수 없다 — 평문 80에서 리다이렉트만 가능.
+http:// {
+	redir https://{$CADDY_DOMAIN}{uri} 301
+}

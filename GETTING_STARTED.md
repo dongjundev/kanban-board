@@ -78,11 +78,13 @@ location / {
 
 ### Azure 단일 VM 배포 (Docker Compose)
 
-VM 한 대에 프론트·백엔드·DB를 모두 올리는 구성입니다. `nginx`(프론트 서빙 + `/api` 프록시) → `backend`(Spring Boot) → `postgres` 3개 컨테이너를 `docker-compose.prod.yml` 하나로 띄웁니다. 외부에 열리는 포트는 nginx의 80뿐이고, 백엔드(8080)·DB(5432)는 compose 내부 네트워크 전용이라 인터넷에서 접근할 수 없습니다.
+VM 한 대에 프론트·백엔드·DB를 모두 올리는 구성입니다. `caddy`(HTTPS 종단) → `nginx`(프론트 서빙 + `/api` 프록시) → `backend`(Spring Boot) → `postgres` 4개 컨테이너를 `docker-compose.prod.yml` 하나로 띄웁니다. 외부에 열리는 포트는 caddy의 80/443뿐이고, nginx(80)·백엔드(8080)는 compose 내부 네트워크 전용이라 인터넷에서 접근할 수 없습니다.
 
 ```
-                인터넷 :80/:443
+                인터넷 :443 (HTTPS)          :80은 인증서 발급·리다이렉트용
                      │
+              ┌──────▼──────┐  caddy — TLS 종단, Let's Encrypt 자동 발급·갱신
+              └──────┬──────┘
               ┌──────▼──────┐  nginx (frontend 컨테이너)
               │ 정적 서빙 +   │
               │ /api 프록시   │
@@ -91,33 +93,37 @@ VM 한 대에 프론트·백엔드·DB를 모두 올리는 구성입니다. `ngi
                  └──► Spring Boot ──► PostgreSQL (둘 다 내부 전용)
 ```
 
-**1) VM 준비** — Azure Portal에서 Ubuntu 22.04/24.04 VM 생성(B2s 2vCPU/4GB 권장). NSG(방화벽)에서 **22·80·443만** 인바운드 허용. Docker 설치:
+**1) VM 준비** — Azure Portal에서 Ubuntu 22.04/24.04 VM 생성(B2s 2vCPU/4GB 권장). NSG(방화벽)에서 **22·80·443만** 인바운드 허용. **443이 HTTPS지만 80도 닫으면 안 됩니다** — Let's Encrypt 인증서 발급·갱신(HTTP-01 챌린지)과 옛 주소 리다이렉트가 80을 씁니다. Docker 설치:
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 ```
 
-**2) 코드 배포 + 시크릿** — 리포지토리를 VM에 clone(또는 CI로 전송) 후, 저장소 루트에서:
+**2) HTTPS 주소 만들기 (무료)** — Portal에서 VM의 **공용 IP 리소스 → 구성 → "DNS 이름 레이블"**에 이름을 입력하면 `<레이블>.<리전>.cloudapp.azure.com` 주소가 생깁니다. 도메인 구매·별도 DNS 등록이 필요 없고, IP가 바뀌어도 주소가 자동으로 따라갑니다. caddy가 이 이름으로 인증서를 자동 발급·갱신하므로 certbot 등 수동 관리가 없습니다. (이미 소유한 도메인이 있으면 A 레코드를 VM IP로 지정하고 그 도메인을 써도 됩니다.)
+
+**3) 코드 배포 + 시크릿** — 리포지토리를 VM에 clone(또는 CI로 전송) 후, 저장소 루트에서:
 
 ```bash
 cp .env.example .env
-# .env 를 열어 POSTGRES_PASSWORD 와 APP_AUTH_PASSWORD 를 강한 값으로 수정
+# .env 를 열어 POSTGRES_PASSWORD 와 APP_AUTH_PASSWORD 를 강한 값으로 수정하고,
+# CADDY_DOMAIN 에 2)에서 만든 전체 주소를 입력
 # (이 파일은 커밋 금지 — .gitignore 포함됨. 이 저장소는 공개이므로 특히 주의)
 ```
 
-`APP_AUTH_PASSWORD`가 비어 있으면 compose가 **기동을 거부**합니다 — 인증 없이 공개 배포되는 사고를 막기 위한 것입니다. 로그인은 서버 세션(HttpOnly 쿠키)으로 동작하며 `/api/**` 전체가 보호됩니다.
+`APP_AUTH_PASSWORD`나 `CADDY_DOMAIN`이 비어 있으면 compose가 **기동을 거부**합니다 — 인증 없이(또는 잘못된 주소로) 공개 배포되는 사고를 막기 위한 것입니다. 로그인은 서버 세션(HttpOnly 쿠키)으로 동작하며 `/api/**` 전체가 보호됩니다.
 
-**3) 실행**:
+**4) 실행**:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-`http://<VM_공인IP>` 로 접속하면 됩니다. 이미지 빌드(gradle·npm)까지 compose가 처리하므로 VM에 Java·Node를 따로 설치할 필요가 없습니다.
+`https://<CADDY_DOMAIN>` 으로 접속하면 됩니다. 첫 기동 시 caddy가 인증서를 발급받는 수십 초 동안은 접속이 안 될 수 있습니다(`docker compose -f docker-compose.prod.yml logs caddy`로 진행 확인). 옛 주소 `http://<VM_공인IP>`로 들어와도 새 주소로 리다이렉트됩니다. 이미지 빌드(gradle·npm)까지 compose가 처리하므로 VM에 Java·Node를 따로 설치할 필요가 없습니다.
 
 **운영 참고**
 - **DB URL은 `sslmode` 불필요** — 백엔드와 DB가 같은 내부 네트워크라 SSL이 필요 없습니다(compose가 `jdbc:postgresql://postgres:5432/kanban`로 자동 주입).
-- **HTTPS (권장)**: `http://<IP>`처럼 평문 HTTP+IP로 접속하면 브라우저가 **비보안 컨텍스트**로 취급해 `crypto.randomUUID` 등 secure-context 전용 API가 동작하지 않습니다(앱은 폴백으로 우회하지만, 근본 해결은 HTTPS). 도메인을 붙였다면 `frontend`의 nginx에 Let's Encrypt(certbot) 인증서를 추가하거나, 앞단에 Caddy/nginx TLS 종단을 두세요.
+- **주소가 바뀌면 브라우저 저장소도 새로 시작합니다**: localStorage는 주소(오리진) 단위라, `http://<IP>` 시절의 로그인 세션과 **저장하지 않은 다이어그램·메모 초안은 새 주소로 넘어오지 않습니다.** HTTPS 전환 직전에 각 PC의 미저장 초안을 서버에 저장(또는 복사)해 두세요. 보드·메모·차트 등 서버(DB)에 저장된 데이터는 그대로 보입니다.
+- **HTTP+IP 접속의 제약(참고)**: 평문 HTTP+IP로 쓰면 브라우저가 **비보안 컨텍스트**로 취급해 `crypto.randomUUID` 등 secure-context 전용 API가 동작하지 않고(앱은 폴백으로 우회), 회사망 보안장비가 요청 본문을 검사·지연시켜 저장이 간헐적으로 타임아웃되는 사례가 실제로 있었습니다. HTTPS가 기본 구성인 이유입니다.
 - **백업**: 관리형 DB와 달리 자동 백업이 없으므로 `docker exec <postgres컨테이너> pg_dump -U kanban kanban > backup.sql` 을 크론으로 주기 실행하세요. 데이터는 `kanban-pgdata`(DB) + `kanban-uploads`(업로드 파일) 볼륨에 유지되어 `docker compose down`(볼륨 유지) 후 재기동해도 보존됩니다. 업로드 파일까지 백업하려면 `kanban-uploads` 볼륨도 함께 아카이브하세요.
 - **스키마**: `ddl-auto=update`라 최초 기동 시 필요한 테이블(`workspace_document`, `note`, `stored_file`, `diagram`)이 자동 생성됩니다.
 - **⚠️ 기존 배포 1회성 마이그레이션**: 2026-08 이전에 생성된 DB는 긴 문자열 컬럼이 `varchar(32600)`으로 만들어져 있어, 데이터가 32,600자를 넘으면 저장이 500으로 실패합니다. `ddl-auto=update`는 기존 컬럼 타입을 바꾸지 않으므로 아래를 **한 번** 실행하세요(데이터 손실 없이 확장만 됨). 새로 만드는 DB는 처음부터 `text`라 불필요합니다.
