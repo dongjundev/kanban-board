@@ -214,6 +214,7 @@ graph TB
 | Esc 레이어링 | 팝오버 열림 → Esc는 팝오버만, 편집 중 필드 → Esc는 편집 취소만, 그 외 → 모달 닫기 |
 | 접근성 | 카드 Enter=상세 열기 / Space=키보드 드래그, 모달 포커스 트랩+복원, 삭제 버튼 `:focus-within` 노출, 토스트 `role="status"` |
 | 클릭 아웃사이드 | `useClickOutside` — 캡처 단계 pointerdown이라 드래그 방지용 stopPropagation과 충돌 없음 |
+| 요청 본문 압축 | 메모·차트 저장 본문을 `gzipJsonRequest`(http.ts)가 gzip으로 전송(`Content-Encoding: gzip`), 백엔드 `GzipRequestFilter`가 해제 — 요청 본문 크기를 막는 사내망 보안장비 대응. 요청 압축은 응답과 달리 자동이 아니라 양쪽이 짝으로 필요. `CompressionStream` 없는 브라우저는 평문 폴백 |
 
 ## 8. 디렉토리 구조
 

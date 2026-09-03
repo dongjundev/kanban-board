@@ -27,6 +27,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
 #  - smoke-auth.mjs: 인증 켠 백엔드 단독 (APP_AUTH_PASSWORD=test-pw ./gradlew bootRun)
+#  - smoke-syncrace.mjs·smoke-gzip.mjs: 백엔드 켬 (빈 DB 불필요 — 만든 것은 스스로 지움)
 #  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
@@ -88,6 +89,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - `ddl-auto=update`는 **기존 컬럼 타입을 바꾸지 않는다** — 매핑을 고쳐도 이미 배포된 DB는 `ALTER TABLE ... TYPE text`를 수동 실행해야 한다.
 
 **길이를 지정하지 않은 문자열 컬럼은 varchar(255)다.** 컨트롤러에서 길이를 검증하거나 잘라 넣지 않으면 DB 제약 위반이 **500으로 새어 나간다**(전역 예외 핸들러가 없다). 파일처럼 바이트를 먼저 디스크에 쓰는 경로에서는 저장 실패가 참조 없는 고아 파일까지 남긴다.
+
+**메모·차트 저장 본문은 gzip으로 온다(`Content-Encoding: gzip`) — `GzipRequestFilter`가 풀어준다.** 회사망 보안장비가 일정 크기를 넘는 요청 본문을 막아 긴 메모·차트 저장이 실패하던 문제의 대응으로, 프론트 `http.ts`의 `gzipJsonRequest`가 압축해 보낸다(텍스트 70~90% 감소). 응답 gzip과 달리 요청 본문은 브라우저·서블릿 컨테이너 어느 쪽도 자동으로 압축·해제하지 않으므로 **양쪽이 반드시 짝으로 존재해야 한다** — 필터를 지우면 컨트롤러가 gzip 바이트를 JSON으로 읽다 실패해 저장이 전부 400이 된다. `CompressionStream`이 없는 브라우저는 헤더 없이 평문으로 보내고 필터는 손대지 않는다. 필터는 풀린 크기를 50MB로 제한한다(gzip 폭탄 방어) — 초과·손상 gzip은 500이 아니라 400. 워크스페이스 PUT은 압축하지 않는다(`keepalive` 64KiB 경로와 `flushChain`을 건드리지 않기 위해). 회귀: `GzipRequestTests`, `e2e/smoke-gzip.mjs`.
 
 ### 로그인 (선택 — 환경변수로 켜짐)
 

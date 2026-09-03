@@ -44,3 +44,24 @@ export async function apiFetch(input: string, init?: RequestInit, timeoutMs = DE
 export function apiFetchNoTimeout(input: string, init?: RequestInit): Promise<Response> {
   return apiFetch(input, init, 0)
 }
+
+/**
+ * JSON 본문을 gzip으로 압축한 fetch 옵션을 만든다.
+ *
+ * 회사망 보안장비가 일정 크기를 넘는 요청 본문을 막는 환경에서 메모·차트 저장이 실패한다.
+ * 텍스트는 gzip으로 70~90% 줄어 한도 아래로 내려갈 여지가 크다. 백엔드의 GzipRequestFilter가
+ * Content-Encoding: gzip 헤더를 보고 되돌리므로 반드시 짝으로 존재해야 한다 — 필터가 빠지면
+ * 저장이 전부 400이 된다. (응답 gzip과 달리 요청 본문은 브라우저·서버 어느 쪽도 자동으로
+ * 압축·해제하지 않아 양쪽에 직접 코드가 필요하다.)
+ *
+ * CompressionStream이 없는 오래된 브라우저는 평문 JSON으로 폴백한다 — 서버는 헤더가 없으면 그대로 읽는다.
+ */
+export async function gzipJsonRequest(method: string, payload: unknown): Promise<RequestInit> {
+  const json = JSON.stringify(payload)
+  if (typeof CompressionStream === 'undefined') {
+    return { method, headers: { 'Content-Type': 'application/json' }, body: json }
+  }
+  // 스트림을 fetch body로 직접 넘기지 않고 Blob으로 확정한다 — 스트리밍 요청 본문은 Safari가 지원하지 않는다
+  const body = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).blob()
+  return { method, headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' }, body }
+}
