@@ -3,7 +3,7 @@
  * 실패 시 에러를 던지고, 호출부(MemoPage)가 사용자에게 메시지를 표시한다.
  */
 
-import { apiFetch, apiFetchNoTimeout } from './http'
+import { apiFetch, apiFetchNoTimeout, gzipJsonRequest } from './http'
 
 export interface NoteDto {
   id: number
@@ -26,11 +26,8 @@ export async function listNotes(): Promise<NoteDto[]> {
 }
 
 export async function createNote(content: string): Promise<NoteDto> {
-  const res = await apiFetch('/api/notes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
-  })
+  // 본문을 gzip으로 보낸다 — 회사망 보안장비가 큰 요청 본문을 막는 문제 대응 (http.ts 참고)
+  const res = await apiFetch('/api/notes', await gzipJsonRequest('POST', { content }))
   if (!res.ok) throw new Error('메모 저장에 실패했습니다')
   return res.json()
 }

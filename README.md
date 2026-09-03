@@ -85,3 +85,4 @@ front/src/
 - **드래그&드롭**: `@dnd-kit`의 multiple-containers 패턴 — `onDragOver`에서 컬럼 간 이동을 실시간 반영(라이브 프리뷰)하고, `onDragEnd`에서 같은 컬럼 내 최종 순서를 확정합니다.
 - **한글 IME**: 모든 Enter 제출 입력에 `isComposing` 가드가 있어 한글 조합 중 Enter로 인한 중복 제출이 없습니다.
 - **필터 중 드래그**: 화면에 보이는(필터된) 카드 기준으로 드롭 위치를 잡되, 실제 삽입 인덱스는 전체 `cardIds`에서 계산하므로 필터가 걸린 상태에서도 순서가 깨지지 않습니다.
+- **요청 본문 압축**: 메모·차트 저장은 본문을 gzip으로 보냅니다(`Content-Encoding: gzip`, 텍스트 기준 70~90% 감소). 일정 크기를 넘는 요청을 막는 사내망 보안장비 환경 대응이며, 백엔드 `GzipRequestFilter`가 풀어서 처리합니다. `CompressionStream`이 없는 브라우저는 평문으로 폴백합니다.

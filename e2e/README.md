@@ -37,6 +37,7 @@ node --experimental-default-type=module smoke.mjs   # 또는 그냥 node smoke.m
 | `smoke-backend.mjs` | 서버 마이그레이션·복원·브라우저 간 동기화 | **켬** |
 | `smoke-backend2.mjs` | 동기화 강화 (재시도, 재조정, 409 충돌, 오프라인 승격) | **켬** |
 | `smoke-syncrace.mjs` | 느린 PUT 중 연속 편집 유실(자기-409) 회귀 | **켬**(빈 DB 불필요) |
+| `smoke-gzip.mjs` | 메모·차트 저장 본문 gzip 압축 전송(헤더·전송 크기)과 서버 해제 무결성 | **켬**(빈 DB 불필요 — 만든 것은 스스로 지움) |
 
 주의:
 
