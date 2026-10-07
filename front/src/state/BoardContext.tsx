@@ -42,6 +42,8 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 서버 PUT 직렬화 체인 (flushRemote 주석 참조)
   const flushChain = useRef<Promise<void>>(Promise.resolve())
+  // 서버 PUT(충돌 시 pull 포함)이 진행 중 — 그동안 받아온 원격 상태는 적용하지 않는다 (pullRemote 주석 참조)
+  const flushing = useRef(false)
   // 비동기 콜백에서 최신 상태를 읽기 위한 ref
   const latest = useRef(workspace)
   latest.current = workspace
@@ -62,9 +64,20 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     if (notifyConflict) window.dispatchEvent(new CustomEvent('kanban:sync-conflict'))
   }
 
-  async function pullRemote(notifyConflict: boolean) {
+  /**
+   * 폴링·탭 복귀·접속 시의 pull. 받아오는 사이 로컬 변경이 생겼거나 저장이 진행 중이면 적용하지 않는다.
+   * 적용하면 화면은 원격 상태로 바뀌는데, 대기 중이던 로컬 스냅샷(원격 변경 이전 상태 기반)이 새
+   * baseVersion을 달고 나가 원격 변경을 조용히 덮는다 — 그 뒤로는 버전이 같아 폴링이 다시 받아오지
+   * 않으므로 화면은 서버와 어긋난 채로 남는다. 적용을 건너뛰면 로컬 변경의 PUT이 원래 baseVersion으로
+   * 나가 409 → 충돌 처리(서버 상태 적용 + 알림)로 정식 수렴한다.
+   */
+  async function pullRemote() {
+    const base = lastVersion.current
     const remote = await fetchRemoteWorkspace()
-    if (typeof remote === 'object') applyRemote(remote, notifyConflict)
+    if (typeof remote !== 'object') return
+    // 받아오는 사이 버전이 움직였으면(저장 성공·다른 pull 적용) 이 응답은 낡았을 수 있다 — 다음 폴링이 판단
+    if (dirty.current || flushing.current || lastVersion.current !== base) return
+    applyRemote(remote)
   }
 
   /**
@@ -88,23 +101,38 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       return
     }
     dirty.current = null
-    const result = await saveRemoteWorkspace(pending, lastVersion.current, keepalive)
-    if (result === 'conflict') {
-      // 다른 클라이언트가 먼저 저장 — 서버 상태를 받아들이고 사용자에게 알림
-      await pullRemote(true)
-      return
+    flushing.current = true
+    try {
+      const result = await saveRemoteWorkspace(pending, lastVersion.current, keepalive)
+      if (result === 'conflict') {
+        // 다른 클라이언트가 먼저 저장 — 서버 상태를 받아들이고 사용자에게 알림
+        const remote = await fetchRemoteWorkspace()
+        if (typeof remote === 'object') {
+          // 기다리는 사이 쌓인 편집도 충돌 이전 상태 위의 것이라 함께 버린다 — 남겨두면 새
+          // baseVersion을 달고 나가 방금 받은 원격 변경을 덮는다(화면과 서버가 어긋남)
+          if (saveTimer.current) {
+            clearTimeout(saveTimer.current)
+            saveTimer.current = null
+          }
+          dirty.current = null
+          applyRemote(remote, true)
+        }
+        return
+      }
+      if (result !== null) {
+        lastVersion.current = result.version
+        saveBaseVersion(result.version)
+        return
+      }
+      // 실패 — 그 사이 더 새로운 변경이 없으면 복구해 재시도 (조용한 유실 방지)
+      if (!dirty.current) {
+        dirty.current = pending
+        scheduleFlush(RETRY_DELAY_MS)
+      }
+      console.warn('[kanban] 서버 저장 실패 — 잠시 후 재시도합니다 (localStorage에는 저장됨)')
+    } finally {
+      flushing.current = false
     }
-    if (result !== null) {
-      lastVersion.current = result.version
-      saveBaseVersion(result.version)
-      return
-    }
-    // 실패 — 그 사이 더 새로운 변경이 없으면 복구해 재시도 (조용한 유실 방지)
-    if (!dirty.current) {
-      dirty.current = pending
-      scheduleFlush(RETRY_DELAY_MS)
-    }
-    console.warn('[kanban] 서버 저장 실패 — 잠시 후 재시도합니다 (localStorage에는 저장됨)')
   }
 
   /**
@@ -152,7 +180,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    await pullRemote(false)
+    await pullRemote()
     if (firstConnect) console.info('[kanban] 서버 모드로 동작합니다')
   }
 
@@ -193,7 +221,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       const version = await fetchRemoteVersion()
       if (version === null || version === lastVersion.current) return
       if (dirty.current) return
-      await pullRemote(false)
+      await pullRemote()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,7 +245,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       void (async () => {
         const version = await fetchRemoteVersion()
         if (version === null || version === lastVersion.current || dirty.current) return
-        await pullRemote(false)
+        await pullRemote()
       })()
     }
     document.addEventListener('visibilitychange', onVisibilityChange)

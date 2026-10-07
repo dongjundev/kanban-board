@@ -120,8 +120,8 @@ classDiagram
 - 백엔드 감지는 `/version`(항상 200 JSON)으로 — 정적 호스팅의 404/SPA 폴백을 '빈 서버'로 오판하지 않음
 - 마운트 시: 서버 문서 있으면 적용, 비어 있으면(version 0) 로컬 데이터 마이그레이션, 접속 불가면 localStorage 모드(이후 폴링이 백엔드를 재감지하면 서버 모드로 승격)
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 = 미전송 변경 → 서버로 밀어올림 (탭 강제 종료·keepalive 한도 초과로 유실된 저장의 복구 경로)
-- 상태 변경 → localStorage 즉시 미러 + 400ms 디바운스 PUT(`baseVersion` 포함). **실패 시 dirty 복구 + 3초 재시도**, **409 시 서버 상태 pull + 충돌 토스트**(남의 확정 저장을 덮지 않음)
-- 4초 폴링으로 version 비교 후 적용(미러도 갱신). dirty 있으면 건너뜀
+- 상태 변경 → localStorage 즉시 미러 + 400ms 디바운스 PUT(`baseVersion` 포함). **실패 시 dirty 복구 + 3초 재시도**, **409 시 서버 상태 pull + 충돌 토스트**(남의 확정 저장을 덮지 않음. 그 사이 쌓인 dirty도 충돌 이전 상태 기반이라 함께 폐기)
+- 4초 폴링으로 version 비교 후 적용(미러도 갱신). **받아오는 사이 로컬 변경이 대기(dirty)·전송 중이면 적용하지 않음** — 적용하면 대기 중이던 낡은 스냅샷이 새 baseVersion을 달고 저장돼 원격 변경을 409 없이 덮고, 버전이 같아진 폴링은 다시 받지 않아 화면이 서버와 어긋난 채 남는다. 건너뛰면 그 PUT이 원래 baseVersion으로 나가 409 → 충돌 처리로 수렴
 - 탭 가려짐(visibilitychange)에 선제 플러시, `pagehide`엔 keepalive PUT(본문 64KiB 한도 초과 시 일반 fetch로 최선 노력 — 실패해도 재조정이 복구)
 
 - 저장 키: `kanban-workspace-v1` (레거시 `kanban-board-state-v1` 단일 보드는 첫 로드 때 자동 마이그레이션)

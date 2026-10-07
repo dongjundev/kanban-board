@@ -27,7 +27,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
 #  - smoke-auth.mjs: 인증 켠 백엔드 단독 (APP_AUTH_PASSWORD=test-pw ./gradlew bootRun)
-#  - smoke-syncrace.mjs·smoke-gzip.mjs: 백엔드 켬 (빈 DB 불필요 — 만든 것은 스스로 지움)
+#  - smoke-syncrace.mjs·smoke-syncpull.mjs·smoke-gzip.mjs: 백엔드 켬 (빈 DB 불필요 — 고유 표식으로 검증하거나 만든 것은 스스로 지움)
 #  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
@@ -43,6 +43,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 서버(PostgreSQL, version 번호) ↔ localStorage 미러(오프라인 폴백) ↔ 다른 탭(storage 이벤트). 이 코드는 여러 리뷰 사이클에서 실데이터 소실 버그를 잡으며 다듬어진 부분이라 수정 시 각별히 주의:
 
 - **서버 PUT은 직렬화 체인(`flushChain`)을 반드시 거친다.** PUT이 느린 동안(배포 VM 실측 0.1~1.4초) 다음 디바운스가 만료되면 두 PUT이 같은 baseVersion으로 동시에 나가고, 뒤엣것이 자기 자신과 409로 충돌해 방금 한 변경이 "다른 기기 충돌"로 둔갑해 되돌려진다(혼자 써도 유실 — smoke-syncrace.mjs가 회귀 방어).
+- **원격 상태(pull)는 로컬 변경이 대기(`dirty`)·전송(`flushing`) 중이면 적용하지 않는다.** 적용하면 화면은 원격 상태로 바뀌는데, 대기 중이던 스냅샷(원격 변경 이전 상태 기반)이 새 baseVersion을 달고 저장돼 409 없이 원격 변경을 덮는다. 그 뒤로는 버전이 같아 폴링이 다시 받지 않으므로 화면이 서버와 어긋난 채 남는다("가끔 실시간 반영이 안 된다"로 보임 — smoke-syncpull.mjs가 회귀 방어). 건너뛰면 그 PUT이 원래 baseVersion으로 나가 409 → 충돌 처리로 수렴한다. 같은 이유로 409 처리에서 서버 상태를 적용할 때는 그 사이 쌓인 dirty도 함께 버린다.
 - **PUT은 `baseVersion` 선행조건** 포함 — 서버가 불일치 시 409, 클라이언트는 pull + 충돌 토스트(`window` CustomEvent `kanban:sync-conflict` → AppInner가 수신). 실패 시 dirty 복구 + 3초 재시도.
 - **에코 억제**(`skipNextPersist`: 'all' | 'remote'): 동기화로 받은 상태를 되저장하면 탭 간 무한 쓰기 루프가 생긴다 (두 탭의 activeBoardId가 달라 저장 문자열이 영원히 수렴하지 않음).
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
