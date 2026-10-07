@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LogOut, Moon, Sun } from 'lucide-react'
+import { CloudOff, LogOut, Moon, Sun } from 'lucide-react'
 import type { Filters } from './types'
 import { EMPTY_FILTERS } from './types'
 import { BoardProvider, useBoard } from './state/BoardContext'
@@ -29,7 +29,7 @@ function viewFromPath(): View {
 }
 
 function AppInner({ onLogout }: { onLogout: (() => void) | null }) {
-  const { state, workspace } = useBoard()
+  const { state, workspace, syncFailing } = useBoard()
   const { showToast } = useToast()
   // 테마 토글은 여기 한 곳에서만 호출 — useTheme은 Context가 아니라 로컬 state 훅이라
   // 두 컴포넌트가 각자 호출하면 상태가 갈라져 토글이 어긋난다
@@ -139,6 +139,15 @@ function AppInner({ onLogout }: { onLogout: (() => void) | null }) {
       </nav>
       {view === 'board' ? (
         <>
+          {syncFailing && (
+            <div className="sync-banner" role="status">
+              <CloudOff size={16} />
+              <span>
+                <strong>동기화 실패 · 재시도 중</strong> — 복구될 때까지 다른 기기의 변경이 반영되지 않습니다. 이 기기의
+                변경은 브라우저에 보관되어 있습니다.
+              </span>
+            </div>
+          )}
           {/* key: 보드 전환 시 리마운트 — 제목 편집 draft 등 이전 보드의 헤더 상태가 남지 않도록 */}
           <BoardHeader key={workspace.activeBoardId} filters={effectiveFilters} onFiltersChange={handleFiltersChange} />
           <Board

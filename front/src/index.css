@@ -1133,6 +1133,22 @@ span.app-tab {
   border-bottom-color: var(--primary);
 }
 
+/* 동기화 장애 배너 — 저장 실패·서버 무응답으로 동기화가 멈췄음을 알린다 */
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 13px;
+  word-break: keep-all; /* 좁은 화면에서 한글 단어 중간이 끊기지 않게 */
+  border-bottom: 1px solid var(--border);
+}
+.sync-banner svg {
+  flex-shrink: 0;
+}
+
 /* ── 메모 페이지 ── */
 .memo-page {
   flex: 1;

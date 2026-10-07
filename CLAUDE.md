@@ -27,7 +27,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 # 전제 조건이 스위트마다 다름 — e2e/README.md 필독:
 #  - smoke-backend*.mjs 2개: 백엔드 켬 + 빈 DB (정지 → docker compose down -v && up -d → 기동)
 #  - smoke-auth.mjs: 인증 켠 백엔드 단독 (APP_AUTH_PASSWORD=test-pw ./gradlew bootRun)
-#  - smoke-syncrace.mjs·smoke-syncpull.mjs·smoke-gzip.mjs: 백엔드 켬 (빈 DB 불필요 — 고유 표식으로 검증하거나 만든 것은 스스로 지움)
+#  - smoke-syncrace.mjs·smoke-syncpull.mjs·smoke-syncux.mjs·smoke-gzip.mjs: 백엔드 켬 (빈 DB 불필요 — 고유 표식으로 검증하거나 만든 것은 스스로 지움)
 #  - 나머지 10개: 백엔드 끔 (켜져 있으면 서버 데이터가 localStorage 시나리오를 오염)
 #  - Playwright는 프로젝트 의존성이 아님 — 별도 폴더에 npm i playwright 후 실행
 ```
@@ -44,6 +44,8 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 
 - **서버 PUT은 직렬화 체인(`flushChain`)을 반드시 거친다.** PUT이 느린 동안(배포 VM 실측 0.1~1.4초) 다음 디바운스가 만료되면 두 PUT이 같은 baseVersion으로 동시에 나가고, 뒤엣것이 자기 자신과 409로 충돌해 방금 한 변경이 "다른 기기 충돌"로 둔갑해 되돌려진다(혼자 써도 유실 — smoke-syncrace.mjs가 회귀 방어).
 - **원격 상태(pull)는 로컬 변경이 대기(`dirty`)·전송(`flushing`) 중이면 적용하지 않는다.** 적용하면 화면은 원격 상태로 바뀌는데, 대기 중이던 스냅샷(원격 변경 이전 상태 기반)이 새 baseVersion을 달고 저장돼 409 없이 원격 변경을 덮는다. 그 뒤로는 버전이 같아 폴링이 다시 받지 않으므로 화면이 서버와 어긋난 채 남는다("가끔 실시간 반영이 안 된다"로 보임 — smoke-syncpull.mjs가 회귀 방어). 건너뛰면 그 PUT이 원래 baseVersion으로 나가 409 → 충돌 처리로 수렴한다. 같은 이유로 409 처리에서 서버 상태를 적용할 때는 그 사이 쌓인 dirty도 함께 버린다.
+- **보드 선택(`activeBoardId`)만 바뀐 변경은 서버로 보내지 않는다**(미러에만 저장). 기기별 화면 상태라 받는 쪽은 어차피 자기 선택을 유지하는데, 보내면 전환만으로 버전이 올라 다른 기기의 편집이 내용 충돌 없이 409로 버려진다. 재조정 비교도 `boards`·`boardOrder`만 본다 — `activeBoardId`를 넣으면 다른 보드를 보던 기기가 새로고침마다 쓸데없이 저장한다.
+- **동기화 실패는 콘솔이 아니라 화면(`syncFailing` 배너)에 알린다.** 저장 재시도 중엔 폴링도 멈춰 다른 기기 변경이 안 들어오는데, 콘솔 경고만으로는 사용자가 동기화되는 줄 안다. 폴링 성공으로 저장 실패 표시를 지우지 말 것 — PUT만 막히고 GET은 통하는 환경에서는 경고가 깜빡인다.
 - **PUT은 `baseVersion` 선행조건** 포함 — 서버가 불일치 시 409, 클라이언트는 pull + 충돌 토스트(`window` CustomEvent `kanban:sync-conflict` → AppInner가 수신). 실패 시 dirty 복구 + 3초 재시도.
 - **에코 억제**(`skipNextPersist`: 'all' | 'remote'): 동기화로 받은 상태를 되저장하면 탭 간 무한 쓰기 루프가 생긴다 (두 탭의 activeBoardId가 달라 저장 문자열이 영원히 수렴하지 않음).
 - **재조정**: 미러의 기반 버전(`kanban-workspace-base-version`)이 서버 버전과 같은데 내용이 다르면 미전송 변경으로 판단해 서버로 밀어올린다 — 탭 강제 종료·keepalive 64KiB 한도로 유실된 저장의 복구 경로.
@@ -70,6 +72,7 @@ docker compose up -d           # 로컬 PostgreSQL (localhost:5432, db/user/pw �
 - **키보드로 제출되는 저장은 `saving` state가 아니라 ref로 중복을 막는다** — 연타(키 자동반복 포함)는 리렌더 사이에 연달아 들어와 state가 아직 true가 아니므로 같은 것이 여러 벌 저장된다. 버튼 `disabled`는 키보드 경로를 막지 못한다.
 - 팝오버는 Esc로 닫혀야 한다. `onKeyDown`으로 키를 밖으로 내보내지 않는 팝오버(컬럼 ⋯ 메뉴)는 **자기 자신이 Esc를 처리**해야 한다.
 - CardModal의 닫기 경로는 반드시 `closeWithCommit` 경유 — Safari는 버튼 클릭이 포커스를 옮기지 않아 자연 blur 커밋이 없다.
+- **CardModal의 blur 커밋은 입력을 시작한 시점 값(`editBase`)과 비교한다.** 지금 카드 값과만 비교하면, 열어둔 사이 다른 기기가 바꾼 칸을 손대지 않고 포커스만 거쳐 가도 낡은 초안으로 되돌린다. 카드가 바뀌면 입력 중이 아닌 칸의 초안만 새 값으로 맞춘다(입력 중인 글은 덮지 않음).
 
 ### 프로덕션 nginx + HTTPS(Caddy)
 

@@ -15,6 +15,8 @@ interface CardModalProps {
   onClose: () => void
 }
 
+type DraftField = 'title' | 'description' | 'assignee'
+
 export function CardModal({ card, onClose }: CardModalProps) {
   const { state, dispatch } = useBoard()
   const undoableDelete = useUndoableDelete()
@@ -22,9 +24,23 @@ export function CardModal({ card, onClose }: CardModalProps) {
   const [titleDraft, setTitleDraft] = useState(card.title)
   const [descDraft, setDescDraft] = useState(card.description)
   const [assigneeDraft, setAssigneeDraft] = useState(card.assignee)
+  // 입력 중인 칸 — 열어둔 사이 카드가 바뀌어도(다른 기기·다른 탭) 이 칸에 입력 중인 글은 덮지 않는다
+  const [editingField, setEditingField] = useState<DraftField | null>(null)
+  // 입력을 시작한 시점의 값. 커밋은 여기서 바뀌었을 때만 한다 — 지금 카드 값과만 비교하면, 손대지 않고
+  // 포커스만 거쳐 간 칸이 열어둔 사이 다른 기기가 바꾼 값을 낡은 초안으로 되돌린다
+  const editBase = useRef('')
   // Esc로 편집을 '취소'한 경우 blur 커밋을 건너뛰기 위한 플래그
   const cancelEditRef = useRef(false)
   const modalRef = useRef<HTMLDivElement>(null)
+
+  // 열어둔 사이 카드가 바뀌면 입력 중이 아닌 칸의 초안을 새 값으로 맞춘다 (렌더 중 상태 조정 패턴)
+  const [syncedCard, setSyncedCard] = useState(card)
+  if (card !== syncedCard) {
+    setSyncedCard(card)
+    if (editingField !== 'title') setTitleDraft(card.title)
+    if (editingField !== 'description') setDescDraft(card.description)
+    if (editingField !== 'assignee') setAssigneeDraft(card.assignee)
+  }
 
   const column = findColumnOfCard(state, card.id)
 
@@ -52,40 +68,53 @@ export function CardModal({ card, onClose }: CardModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose])
 
+  function startEdit(field: DraftField, value: string) {
+    setEditingField(field)
+    editBase.current = value
+  }
+
   function commitTitle() {
+    setEditingField(null)
     if (cancelEditRef.current) {
       cancelEditRef.current = false
       setTitleDraft(card.title)
       return
     }
-    if (titleDraft.trim() && titleDraft.trim() !== card.title) {
-      dispatch({ type: 'UPDATE_CARD', cardId: card.id, patch: { title: titleDraft.trim() } })
+    const title = titleDraft.trim()
+    if (title && title !== editBase.current && title !== card.title) {
+      dispatch({ type: 'UPDATE_CARD', cardId: card.id, patch: { title } })
     } else {
       setTitleDraft(card.title)
     }
   }
 
   function commitDescription() {
+    setEditingField(null)
     if (cancelEditRef.current) {
       cancelEditRef.current = false
       setDescDraft(card.description)
       return
     }
-    if (descDraft !== card.description) {
+    if (descDraft !== editBase.current && descDraft !== card.description) {
       dispatch({ type: 'UPDATE_CARD', cardId: card.id, patch: { description: descDraft } })
+    } else {
+      setDescDraft(card.description)
     }
   }
 
   function commitAssignee() {
+    setEditingField(null)
     if (cancelEditRef.current) {
       cancelEditRef.current = false
       setAssigneeDraft(card.assignee)
       return
     }
-    if (assigneeDraft.trim() !== card.assignee) {
+    if (assigneeDraft.trim() !== editBase.current.trim() && assigneeDraft.trim() !== card.assignee) {
       dispatch({ type: 'UPDATE_CARD', cardId: card.id, patch: { assignee: assigneeDraft } })
+      setAssigneeDraft(assigneeDraft.trim())
+    } else {
+      setAssigneeDraft(card.assignee)
     }
-    setAssigneeDraft(assigneeDraft.trim())
   }
 
   /** 편집 필드용: Enter=커밋(blur), Esc=취소(원래 값 복원, 모달은 열어둠) */
@@ -137,6 +166,7 @@ export function CardModal({ card, onClose }: CardModalProps) {
           className="modal-title"
           value={titleDraft}
           onChange={(e) => setTitleDraft(e.target.value)}
+          onFocus={() => startEdit('title', titleDraft)}
           onBlur={commitTitle}
           onKeyDown={(e) => editKeyDown(e, true)}
         />
@@ -153,6 +183,7 @@ export function CardModal({ card, onClose }: CardModalProps) {
               placeholder="미지정"
               value={assigneeDraft}
               onChange={(e) => setAssigneeDraft(e.target.value)}
+              onFocus={() => startEdit('assignee', assigneeDraft)}
               onBlur={commitAssignee}
               onKeyDown={(e) => editKeyDown(e, true)}
             />
@@ -204,6 +235,7 @@ export function CardModal({ card, onClose }: CardModalProps) {
             placeholder="설명을 입력하세요"
             value={descDraft}
             onChange={(e) => setDescDraft(e.target.value)}
+            onFocus={() => startEdit('description', descDraft)}
             onBlur={commitDescription}
             onKeyDown={(e) => editKeyDown(e, false)}
           />

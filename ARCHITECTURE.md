@@ -123,6 +123,8 @@ classDiagram
 - 상태 변경 → localStorage 즉시 미러 + 400ms 디바운스 PUT(`baseVersion` 포함). **실패 시 dirty 복구 + 3초 재시도**, **409 시 서버 상태 pull + 충돌 토스트**(남의 확정 저장을 덮지 않음. 그 사이 쌓인 dirty도 충돌 이전 상태 기반이라 함께 폐기)
 - 4초 폴링으로 version 비교 후 적용(미러도 갱신). **받아오는 사이 로컬 변경이 대기(dirty)·전송 중이면 적용하지 않음** — 적용하면 대기 중이던 낡은 스냅샷이 새 baseVersion을 달고 저장돼 원격 변경을 409 없이 덮고, 버전이 같아진 폴링은 다시 받지 않아 화면이 서버와 어긋난 채 남는다. 건너뛰면 그 PUT이 원래 baseVersion으로 나가 409 → 충돌 처리로 수렴
 - 탭 가려짐(visibilitychange)에 선제 플러시, `pagehide`엔 keepalive PUT(본문 64KiB 한도 초과 시 일반 fetch로 최선 노력 — 실패해도 재조정이 복구)
+- **보드 선택(`activeBoardId`)은 기기별 화면 상태**: 선택만 바뀐 변경은 미러에만 저장하고 서버로 보내지 않음(받는 쪽 `REPLACE_WORKSPACE`도 자기 선택 유지). 보내면 전환만으로 버전이 올라 다른 기기들이 문서 전체를 다시 받고, 편집 중이던 기기는 내용 충돌 없이 409로 편집을 잃는다. 같은 이유로 재조정 비교에서도 제외(`boards`·`boardOrder`만 비교)
+- **동기화 장애 표시**(`syncFailing` → 보드 상단 배너): 저장 실패 시 즉시, 폴링 연속 2회 실패(서버 무응답·문서 검증 실패) 시 표시하고 성공하면 해제. 재시도 중엔 폴링도 멈춰 다른 기기 변경이 안 들어오므로 콘솔 경고만으로는 "동기화되는 줄 아는" 상태가 된다. 폴링 성공은 저장이 대기·진행 중이면 표시를 지우지 않음(PUT만 막히고 GET은 통하는 네트워크에서는 폴링이 성공)
 
 - 저장 키: `kanban-workspace-v1` (레거시 `kanban-board-state-v1` 단일 보드는 첫 로드 때 자동 마이그레이션)
 - 로드/수신 시 **딥 검증**(`parseWorkspace`/`isValidWorkspace`): 구조 + 참조 무결성(cardIds→cards, columnOrder→columns,
@@ -212,6 +214,7 @@ graph TB
 | 한글 IME | 모든 Enter/Esc 처리 입력에 `isComposing` 가드 — 조합 중 키가 제출/닫기로 오작동하지 않음 |
 | 테마 | `:root` 디자인 토큰을 `:root[data-theme='dark']`에서 오버라이드. `color-scheme`으로 네이티브 위젯 대응. FOUC 방지 인라인 스크립트 |
 | Esc 레이어링 | 팝오버 열림 → Esc는 팝오버만, 편집 중 필드 → Esc는 편집 취소만, 그 외 → 모달 닫기 |
+| 열린 모달의 원격 변경 | `CardModal`은 카드가 바뀌면 입력 중이 아닌 칸의 초안을 새 값으로 맞추고(렌더 중 상태 조정), 블러 커밋은 입력을 시작한 시점 값(`editBase`)에서 바뀐 칸만 — 지금 값과만 비교하면 손대지 않은 칸의 블러가 다른 기기의 변경을 낡은 초안으로 되돌린다 |
 | 접근성 | 카드 Enter=상세 열기 / Space=키보드 드래그, 모달 포커스 트랩+복원, 삭제 버튼 `:focus-within` 노출, 토스트 `role="status"` |
 | 클릭 아웃사이드 | `useClickOutside` — 캡처 단계 pointerdown이라 드래그 방지용 stopPropagation과 충돌 없음 |
 | 요청 본문 압축 | 메모·차트 저장 본문을 `gzipJsonRequest`(http.ts)가 gzip으로 전송(`Content-Encoding: gzip`), 백엔드 `GzipRequestFilter`가 해제 — 요청 본문 크기를 막는 사내망 보안장비 대응. 요청 압축은 응답과 달리 자동이 아니라 양쪽이 짝으로 필요. `CompressionStream` 없는 브라우저는 평문 폴백 |
